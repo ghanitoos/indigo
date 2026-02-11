@@ -73,7 +73,8 @@ class ProductionConfig(Config):
     
     DEBUG: bool = False
     FLASK_ENV: str = 'production'
-    SESSION_COOKIE_SECURE: bool = True
+    # Allow overriding secure cookie in production (e.g. for HTTP-only internal networks)
+    SESSION_COOKIE_SECURE: bool = config('SESSION_COOKIE_SECURE', default=True, cast=bool)
     
     # Override secret key requirement
     SECRET_KEY: str = config('SECRET_KEY')  # Must be set in production

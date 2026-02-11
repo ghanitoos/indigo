@@ -9,6 +9,20 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <header class="main-header">
+        <div class="header-container">
+            <div class="logo">{{ config.APP_NAME }}</div>
+            {% if current_user.is_authenticated %}
+            <nav class="main-nav">
+                <ul>
+                    <li><span class="user-welcome">Willkommen, {{ current_user.display_name or current_user.username }}</span></li>
+                    <li><a href="{{ url_for('auth.logout') }}" class="btn-logout">{{ get_text('auth.logout_button') }}</a></li>
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </header>
+
     <div class="flash-messages">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
