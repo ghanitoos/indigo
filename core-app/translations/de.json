@@ -1,0 +1,93 @@
+{
+  "common": {
+    "app_name": "Indigo Admin Panel",
+    "welcome": "Willkommen",
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "update": "Aktualisieren",
+    "search": "Suchen",
+    "filter": "Filtern",
+    "reset": "Zurücksetzen",
+    "submit": "Absenden",
+    "back": "Zurück",
+    "next": "Weiter",
+    "previous": "Zurück",
+    "confirm": "Bestätigen",
+    "yes": "Ja",
+    "no": "Nein",
+    "loading": "Lädt...",
+    "error": "Fehler",
+    "success": "Erfolg",
+    "warning": "Warnung",
+    "info": "Information"
+  },
+  "messages": {
+    "success_save": "Erfolgreich gespeichert",
+    "success_delete": "Erfolgreich gelöscht",
+    "success_update": "Erfolgreich aktualisiert",
+    "error_save": "Fehler beim Speichern",
+    "error_delete": "Fehler beim Löschen",
+    "error_load": "Fehler beim Laden",
+    "error_connection": "Verbindungsfehler",
+    "error_permission": "Keine Berechtigung",
+    "error_not_found": "Nicht gefunden",
+    "confirm_delete": "Möchten Sie dieses Element wirklich löschen?"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "users": "Benutzerverwaltung",
+    "pfsense": "pfSense",
+    "fileserver": "Dateiserver",
+    "backup": "Backup",
+    "fog": "FOG Projekt",
+    "settings": "Einstellungen",
+    "profile": "Profil",
+    "help": "Hilfe"
+  },
+  "auth": {
+    "username": "Benutzername",
+    "password": "Passwort",
+    "login_title": "Anmeldung",
+    "login_button": "Anmelden",
+    "logout_button": "Abmelden",
+    "login_success": "Erfolgreich angemeldet",
+    "logout_success": "Erfolgreich abgemeldet",
+    "login_failed": "Anmeldung fehlgeschlagen",
+    "invalid_credentials": "Ungültige Anmeldedaten",
+    "session_expired": "Sitzung abgelaufen",
+    "access_denied": "Zugriff verweigert"
+  },
+  "form": {
+    "required": "Dieses Feld ist erforderlich",
+    "invalid_email": "Ungültige E-Mail-Adresse",
+    "invalid_format": "Ungültiges Format",
+    "min_length": "Mindestlänge: {0} Zeichen",
+    "max_length": "Maximale Länge: {0} Zeichen",
+    "select_option": "Bitte wählen Sie eine Option"
+  },
+  "modules": {
+    "dashboard": {
+      "title": "Dashboard",
+      "welcome_message": "Willkommen im Indigo Admin Panel",
+      "system_status": "Systemstatus",
+      "recent_activity": "Letzte Aktivitäten",
+      "quick_actions": "Schnellaktionen"
+    },
+    "users": {
+      "title": "Benutzerverwaltung",
+      "list_users": "Benutzer auflisten",
+      "list_groups": "Gruppen auflisten",
+      "add_to_group": "Zur Gruppe hinzufügen",
+      "remove_from_group": "Aus Gruppe entfernen",
+      "user_details": "Benutzerdetails",
+      "group_details": "Gruppendetails",
+      "search_users": "Benutzer suchen",
+      "no_users_found": "Keine Benutzer gefunden"
+    }
+  }
+}
