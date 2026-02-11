@@ -47,7 +47,8 @@
     "fog": "FOG Projekt",
     "settings": "Einstellungen",
     "profile": "Profil",
-    "help": "Hilfe"
+    "help": "Hilfe",
+    "admin": "Verwaltung"
   },
   "auth": {
     "username": "Benutzername",
@@ -88,6 +89,21 @@
       "group_details": "Gruppendetails",
       "search_users": "Benutzer suchen",
       "no_users_found": "Keine Benutzer gefunden"
+    },
+    "admin": {
+      "title": "Verwaltung",
+      "roles": "Rollen",
+      "users": "Benutzer",
+      "manage_roles": "Rollen verwalten",
+      "manage_users": "Benutzer verwalten",
+      "create_role": "Rolle erstellen",
+      "edit_role": "Rolle bearbeiten",
+      "role_name": "Rollenname",
+      "description": "Beschreibung",
+      "permissions": "Berechtigungen",
+      "system_role": "Systemrolle",
+      "save_role": "Rolle speichern",
+      "update_roles": "Rollen aktualisieren"
     }
   }
 }

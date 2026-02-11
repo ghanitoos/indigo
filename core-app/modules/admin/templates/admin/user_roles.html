@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Manage Roles for {{ user.username }}{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Manage Roles for {{ user.display_name or user.username }}</h1>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.roles.label(class="form-label") }}
+            {{ form.roles(class="form-select", style="height: 200px", multiple=True) }}
+        </div>
+        {{ form.submit(class="btn btn-primary") }}
+        <a href="{{ url_for('admin.users') }}" class="btn btn-light">Cancel</a>
+    </form>
+</div>
+{% endblock %}

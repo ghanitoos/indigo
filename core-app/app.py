@@ -4,9 +4,12 @@ from flask_login import login_required, current_user
 from config import get_config
 from extensions import db, migrate, login_manager, csrf
 from utils.translation import get_text
+from utils.context_processors import inject_sidebar_menu
+from modules.admin import admin_bp
 
 # Import models to ensure they are registered with SQLAlchemy
 from models.user import User
+from models.rbac import Role, Module, Permission
 
 def create_app(config_name=None):
     app = Flask(__name__)
@@ -31,6 +34,7 @@ def create_app(config_name=None):
     # Register Blueprints
     from auth.routes import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(admin_bp)
     
     # Main Blueprint (Placeholder for Dashboard)
     main_bp = Blueprint('main', __name__)
@@ -38,12 +42,13 @@ def create_app(config_name=None):
     @main_bp.route('/')
     @login_required
     def index():
-        # Render a simple dashboard template or placeholder
         return render_template('base.html')
         
     app.register_blueprint(main_bp)
     
     # Context processors
+    app.context_processor(inject_sidebar_menu)
+    
     @app.context_processor
     def inject_helpers():
         return dict(get_text=get_text)
@@ -56,6 +61,32 @@ def create_app(config_name=None):
     return app
 
 app = create_app()
+
+import click
+from flask.cli import with_appcontext
+
+@app.cli.command("init-rbac")
+@with_appcontext
+def init_rbac_command():
+    """Initialize RBAC: sync modules and create default roles."""
+    from utils.module_registry import ModuleRegistry
+    
+    print("Initializing RBAC...")
+    # Sync Modules
+    registry = ModuleRegistry(app)
+    registry.sync_database()
+    
+    # Create Admin Role
+    admin_role = Role.query.filter_by(name='admin').first()
+    if not admin_role:
+        admin_role = Role(name='admin', description='System Administrator', is_system=True)
+        db.session.add(admin_role)
+        db.session.commit()
+        print("Created 'admin' role.")
+    else:
+        print("'admin' role exists.")
+        
+    print("RBAC Initialization complete.")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

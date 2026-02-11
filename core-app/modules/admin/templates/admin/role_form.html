@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>{{ title }}</h1>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.permissions.label(class="form-label") }}
+            {{ form.permissions(class="form-select", style="height: 300px", multiple=True) }}
+            <small class="text-muted">Hold Ctrl (or Cmd) to select multiple</small>
+        </div>
+        {{ form.submit(class="btn btn-primary") }}
+        <a href="{{ url_for('admin.roles') }}" class="btn btn-light">Cancel</a>
+    </form>
+</div>
+{% endblock %}

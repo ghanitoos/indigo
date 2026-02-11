@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Roles - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Roles</h1>
+    <div class="mb-3">
+        <a href="{{ url_for('admin.create_role') }}" class="btn btn-primary">Create Role</a>
+    </div>
+    
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Permissions</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for role in roles %}
+            <tr>
+                <td>{{ role.name }}</td>
+                <td>{{ role.description }}</td>
+                <td>{{ role.permissions|length }}</td>
+                <td>
+                    {% if not role.is_system %}
+                    <a href="{{ url_for('admin.edit_role', id=role.id) }}" class="btn btn-sm btn-secondary">Edit</a>
+                    {% else %}
+                    <span class="badge bg-info">System</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
