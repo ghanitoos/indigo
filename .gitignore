@@ -66,3 +66,4 @@ htmlcov/
 # Flask
 instance/
 .webassets-cache
+data/uploads/

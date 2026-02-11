@@ -26,9 +26,25 @@
         </button>
         {% if current_user.is_authenticated %}
         <div class="navbar-nav w-100">
-            <div class="nav-item text-nowrap d-flex justify-content-end px-3">
-                <span class="nav-link px-3 text-white">Willkommen, {{ current_user.display_name or current_user.username }}</span>
-                <a class="nav-link px-3" href="{{ url_for('auth.logout') }}">{{ get_text('auth.logout_button') }}</a>
+            <div class="nav-item text-nowrap d-flex justify-content-end align-items-center px-3 py-1">
+                <div class="dropdown">
+                    <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
+                        {% if current_user.profile_photo %}
+                        <img src="{{ url_for('profile.get_photo', user_id=current_user.id) }}" alt="mdo" width="40" height="40" class="rounded-circle me-2" style="object-fit: cover;">
+                        {% else %}
+                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" style="width: 40px; height: 40px;">
+                            <i class="fas fa-user text-white"></i>
+                        </div>
+                        {% endif %}
+                        <span class="d-none d-sm-inline">{{ current_user.display_name or current_user.username }}</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end text-small shadow" aria-labelledby="dropdownUser1">
+                        <li><a class="dropdown-item" href="{{ url_for('profile.view_profile') }}">{{ get_text('profile.my_profile') }}</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('profile.edit_profile') }}">{{ get_text('profile.edit_profile') }}</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">{{ get_text('auth.logout_button') }}</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
         {% endif %}
@@ -39,6 +55,17 @@
             {% if current_user.is_authenticated %}
             <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
                 <div class="position-sticky pt-3">
+                    <div class="text-center p-3 border-bottom mb-3">
+                         {% if current_user.profile_photo %}
+                        <img src="{{ url_for('profile.get_photo', user_id=current_user.id) }}" width="60" height="60" class="rounded-circle mb-2" style="object-fit: cover;">
+                        {% else %}
+                         <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto mb-2" style="width: 60px; height: 60px;">
+                            <i class="fas fa-user text-white fa-2x"></i>
+                        </div>
+                        {% endif %}
+                        <div class="small fw-bold text-truncate">{{ current_user.display_name or current_user.username }}</div>
+                    </div>
+
                     <ul class="nav flex-column">
                         {% for item in get_sidebar_menu() %}
                         <li class="nav-item">

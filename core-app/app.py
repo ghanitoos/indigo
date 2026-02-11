@@ -35,6 +35,9 @@ def create_app(config_name=None):
     from auth.routes import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(admin_bp)
+
+    from modules.profile import profile_bp
+    app.register_blueprint(profile_bp, url_prefix='/profile')
     
     # Main Blueprint (Placeholder for Dashboard)
     main_bp = Blueprint('main', __name__)

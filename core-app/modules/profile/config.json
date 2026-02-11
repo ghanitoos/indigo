@@ -1,0 +1,9 @@
+{
+  "name": "profile",
+  "display_name": "Profile",
+  "display_name_de": "Profil",
+  "icon": "fa-user",
+  "url_prefix": "/profile",
+  "public": true,
+  "order": 1
+}

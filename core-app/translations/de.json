@@ -105,5 +105,31 @@
       "save_role": "Rolle speichern",
       "update_roles": "Rollen aktualisieren"
     }
+  },
+  "profile": {
+    "title": "Profil",
+    "my_profile": "Mein Profil",
+    "edit_profile": "Profil bearbeiten",
+    "display_name": "Anzeigename",
+    "email": "E-Mail",
+    "phone": "Telefon",
+    "department": "Abteilung",
+    "bio": "Über mich",
+    "profile_photo": "Profilbild",
+    "upload_photo": "Foto hochladen",
+    "change_photo": "Foto ändern",
+    "delete_photo": "Foto löschen",
+    "photo_deleted": "Profilbild gelöscht",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "drag_drop": "Datei hierher ziehen oder zum Auswählen klicken",
+    "max_size": "Maximale Größe: 2 MB",
+    "allowed_formats": "Erlaubte Formate: JPG, PNG",
+    "photo_updated": "Profilbild erfolgreich aktualisiert",
+    "profile_updated": "Profil erfolgreich gespeichert",
+    "error_upload": "Fehler beim Hochladen der Datei",
+    "error_file_size": "Datei ist zu groß (max. 2 MB)",
+    "error_file_type": "Ungültiges Dateiformat. Nur JPG und PNG erlaubt",
+    "no_photo": "Kein Profilbild vorhanden"
   }
 }

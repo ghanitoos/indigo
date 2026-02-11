@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}{{ get_text('profile.edit_profile') }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card profile-card">
+                <div class="card-header bg-transparent border-0">
+                    <h3 class="mb-0">{{ get_text('profile.edit_profile') }}</h3>
+                </div>
+                <div class="card-body">
+                    <!-- Photo Upload Section -->
+                    <div class="mb-4 text-center">
+                        <div class="mb-3 position-relative d-inline-block">
+                             {% if current_user.profile_photo %}
+                            <img id="profile-preview" src="{{ url_for('profile.get_photo', user_id=current_user.id) }}" class="profile-avatar-large" alt="Profile Photo">
+                            {% else %}
+                            <div id="profile-preview" class="profile-avatar-large d-flex align-items-center justify-content-center bg-secondary text-white mx-auto">
+                                <i class="fas fa-user fa-4x"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="upload-controls mt-2">
+                            <div class="profile-upload-area p-3 border rounded dashed-border" id="drop-zone">
+                                <i class="fas fa-cloud-upload-alt fa-2x mb-2 text-muted"></i>
+                                <p class="mb-2">{{ get_text('profile.drag_drop') }}</p>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('file-input').click()">
+                                    {{ get_text('profile.change_photo') }}
+                                </button>
+                                <input type="file" id="file-input" class="d-none" accept=".jpg,.jpeg,.png">
+                            </div>
+                            <div id="upload-progress" class="progress mt-2 d-none">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <div id="upload-message" class="mt-2 small"></div>
+                            
+                             {% if current_user.profile_photo %}
+                            <div class="mt-2">
+                                <form action="{{ url_for('profile.delete_photo') }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-danger text-white" onclick="return confirm('Are you sure?')">
+                                        <i class="fas fa-trash me-1"></i> {{ get_text('profile.delete_photo') }}
+                                    </button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Profile Form -->
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">{{ get_text('profile.display_name') }}</label>
+                            {{ form.display_name(class="form-control") }}
+                            {% for error in form.display_name.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">{{ get_text('profile.email') }}</label>
+                            {{ form.email(class="form-control") }}
+                            {% for error in form.email.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">{{ get_text('profile.phone') }}</label>
+                            {{ form.phone(class="form-control") }}
+                            {% for error in form.phone.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">{{ get_text('profile.department') }}</label>
+                            {{ form.department(class="form-control") }}
+                            {% for error in form.department.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">{{ get_text('profile.bio') }}</label>
+                            {{ form.bio(class="form-control", rows=4) }}
+                            {% for error in form.bio.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('profile.view_profile') }}" class="btn btn-secondary">{{ get_text('profile.cancel') }}</a>
+                            <button type="submit" class="btn btn-success">{{ get_text('profile.save') }}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/profile.js') }}"></script>
+<script>
+    // Pass URLs and translations to JS
+    const uploadUrl = "{{ url_for('profile.upload_photo') }}";
+    const csrfToken = "{{ csrf_token() }}";
+    const messages = {
+        errorSize: "{{ get_text('profile.error_file_size') }}",
+        errorType: "{{ get_text('profile.error_file_type') }}"
+    };
+</script>
+{% endblock %}

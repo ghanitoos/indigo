@@ -2,16 +2,10 @@
 User model implementation.
 """
 from typing import Optional
+from datetime import datetime
 from flask_login import UserMixin
 from extensions import db
 from models.base import BaseModel
-# We use a string for secondary to avoid circular imports if possible,
-# but since user_roles is a Table object, we need to import it or rely on registry.
-# Using string 'user_roles' works if the table is in metadata.
-# But let's import it to be explicit.
-# Note: To avoid circular imports at module level, we might need to do this carefully.
-# However, rbac.py does not import user.py. So user.py importing rbac.py is safe.
-
 from models.rbac import Role, user_roles
 
 class User(BaseModel, UserMixin):
@@ -25,6 +19,11 @@ class User(BaseModel, UserMixin):
         email (str): Email address
         last_login (datetime): Last login timestamp
         is_active (bool): Whether the user account is active
+        profile_photo (str): Filename of profile photo
+        phone (str): Phone number
+        bio (str): Short biography
+        department (str): Department/Unit
+        updated_at (datetime): Last update timestamp
     """
     __tablename__ = 'users'
     
@@ -34,6 +33,13 @@ class User(BaseModel, UserMixin):
     email = db.Column(db.String(150), nullable=True)
     last_login = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # New fields
+    profile_photo = db.Column(db.String(255), nullable=True)
+    phone = db.Column(db.String(50), nullable=True)
+    bio = db.Column(db.Text, nullable=True)
+    department = db.Column(db.String(100), nullable=True)
+    updated_at = db.Column(db.DateTime, nullable=True)
     
     # Relationships
     roles = db.relationship('Role', secondary=user_roles, lazy='subquery',
@@ -67,3 +73,24 @@ class User(BaseModel, UserMixin):
                 if perm.name == permission_name:
                     return True
         return False
+
+    def get_profile_photo_url(self) -> Optional[str]:
+        """Return URL of profile photo."""
+        if self.profile_photo:
+            return f'/profile/photo/{self.id}'
+        return None
+
+    def update_profile(self, data: dict):
+        """Update profile information."""
+        allowed_fields = ['display_name', 'email', 'phone', 'bio', 'department']
+        for key, value in data.items():
+            if key in allowed_fields and hasattr(self, key):
+                setattr(self, key, value)
+        self.updated_at = datetime.utcnow()
+        db.session.commit()
+
+    def delete_profile_photo(self):
+        """Remove profile photo database reference."""
+        self.profile_photo = None
+        self.updated_at = datetime.utcnow()
+        db.session.commit()
