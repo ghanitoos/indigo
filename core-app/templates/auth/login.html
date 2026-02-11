@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}{{ get_text('auth.login_title') }}{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <div class="login-container">
+        <h1>{{ get_text('auth.login_title') }}</h1>
+        <form method="POST" action="{{ url_for('auth.login') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <div class="form-group">
+                <label for="username">{{ get_text('auth.username') }}</label>
+                <input type="text" id="username" name="username" required class="form-control">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">{{ get_text('auth.password') }}</label>
+                <input type="password" id="password" name="password" required class="form-control">
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">{{ get_text('auth.login_button') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
