@@ -161,6 +161,50 @@ class LDAPConnector:
         info = self.get_user_info(username)
         return info.get('groups', []) if info else []
 
+    def get_all_groups(self) -> List[Dict]:
+        """Get all LDAP groups."""
+        if self.dev_mode:
+            # Mock groups for dev mode testing
+            return [
+                {'cn': 'Domain Admins', 'dn': 'CN=Domain Admins,CN=Users,DC=example,DC=com', 'member_count': 5},
+                {'cn': 'Teachers', 'dn': 'CN=Teachers,CN=Users,DC=example,DC=com', 'member_count': 10},
+                {'cn': 'Students', 'dn': 'CN=Students,CN=Users,DC=example,DC=com', 'member_count': 100}
+            ]
+
+        try:
+            if not self.connection.bind():
+                logger.error("LDAP Bind failed for fetching groups")
+                return []
+
+            search_base = self.base_dn
+            search_filter = '(objectClass=group)'
+            attributes = ['cn', 'distinguishedName', 'member']
+
+            self.connection.search(
+                search_base=search_base,
+                search_filter=search_filter,
+                attributes=attributes
+            )
+
+            groups = []
+            for entry in self.connection.entries:
+                members = entry.member.values if hasattr(entry, 'member') and entry.member else []
+                cn = str(entry.cn) if hasattr(entry, 'cn') and entry.cn else "Unknown"
+                dn = str(entry.distinguishedName) if hasattr(entry, 'distinguishedName') and entry.distinguishedName else ""
+                
+                groups.append({
+                    'cn': cn,
+                    'dn': dn,
+                    'member_count': len(members),
+                    'members': members
+                })
+
+            return groups
+        except Exception as e:
+            logger.error(f"Error fetching groups: {e}")
+            return []
+
+
     def _parse_groups(self, member_of_list) -> List[str]:
         groups = []
         if isinstance(member_of_list, str):

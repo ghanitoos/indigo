@@ -35,6 +35,23 @@ class Role(BaseModel):
     def __repr__(self):
         return f'<Role {self.name}>'
 
+
+    @classmethod
+    def create_from_ldap_group(cls, ldap_group_cn):
+        """
+        Create or get role from LDAP group name.
+        """
+        role = cls.query.filter_by(name=ldap_group_cn).first()
+        if not role:
+            role = cls(
+                name=ldap_group_cn,
+                description=f"LDAP-Gruppe: {ldap_group_cn}",
+                is_system=False
+            )
+            db.session.add(role)
+            db.session.commit()
+        return role
+
 class Module(BaseModel):
     """
     Module model for dynamic module registration.

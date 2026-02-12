@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1><i class="fas fa-users-cog"></i> {{ get_text('admin.group_permissions.title') }}</h1>
+        </div>
+    </div>
+
+    <!-- Add Group Section -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <form action="{{ url_for('admin.add_group') }}" method="POST" class="form-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="form-group mr-2">
+                            <label for="group_cn" class="mr-2">{{ get_text('admin.group_permissions.add_group') }}:</label>
+                            <select name="group_cn" id="group_cn" class="form-control select2" required style="min-width: 300px;">
+                                <option value="">{{ get_text('admin.group_permissions.select_group') }}</option>
+                                {% for group in ldap_groups %}
+                                    <option value="{{ group.cn }}">{{ group.cn }} ({{ group.member_count }} members)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> {{ get_text('admin.group_permissions.add_group') }}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Groups List -->
+    <div class="row" id="groups-container">
+        {% if not roles %}
+            <div class="col-md-12">
+                <div class="alert alert-info">{{ get_text('admin.group_permissions.no_groups') }}</div>
+            </div>
+        {% else %}
+            {% for role in roles %}
+            <div class="col-md-4 mb-4 group-card" data-role-id="{{ role.id }}">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ role.name }}</h5>
+                        <button class="btn btn-danger btn-sm delete-group-btn" data-role-id="{{ role.id }}" title="{{ get_text('admin.group_permissions.delete_group') }}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small">{{ role.description }}</p>
+                        <form class="permissions-form" data-role-id="{{ role.id }}">
+                            <div class="module-list">
+                                {% for module in modules %}
+                                    {% set perm_name = module.name + '.access' %}
+                                    {% set has_perm = false %}
+                                    {% for p in role.permissions %}
+                                        {% if p.name == perm_name %}
+                                            {% set has_perm = true %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input module-check" type="checkbox" 
+                                               id="mod_{{ role.id }}_{{ module.id }}" 
+                                               value="{{ module.name }}"
+                                               {% if has_perm %}checked{% endif %}>
+                                        <label class="form-check-label" for="mod_{{ role.id }}_{{ module.id }}">
+                                            <i class="fas {{ module.icon }}"></i> {{ module.display_name }}
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-success btn-block save-perms-btn" data-role-id="{{ role.id }}">
+                            <i class="fas fa-save"></i> {{ get_text('admin.group_permissions.save_permissions') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/admin_groups.js') }}"></script>
+{% endblock %}
