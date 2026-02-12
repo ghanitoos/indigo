@@ -29,10 +29,12 @@ class ModuleRegistry:
             for module_name in os.listdir(modules_dir):
                 module_path = os.path.join(modules_dir, module_name)
                 if os.path.isdir(module_path) and not module_name.startswith('__'):
-                    try:
-                        self._sync_module_to_db(module_name, module_path)
-                    except Exception as e:
-                        print(f"Failed to sync module {module_name}: {e}")
+                    config_file = os.path.join(module_path, 'config.json')
+                    if os.path.exists(config_file):
+                        try:
+                            self._sync_module_to_db(module_name, module_path)
+                        except Exception as e:
+                            print(f"Failed to sync module {module_name}: {e}")
 
     def _sync_module_to_db(self, module_name, module_path):
         config_file = os.path.join(module_path, 'config.json')
