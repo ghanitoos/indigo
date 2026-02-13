@@ -4,7 +4,7 @@
 <div class="container">
     <h1>Administration</h1>
     <div class="row mt-4">
-        <div class="col-md-6">
+        <div class="col-md-4">
             <div class="card mb-3">
                 <div class="card-body">
                     <h5 class="card-title">Manage Roles</h5>
@@ -13,12 +13,21 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
+        <div class="col-md-4">
             <div class="card mb-3">
                 <div class="card-body">
                     <h5 class="card-title">Manage Users</h5>
                     <p class="card-text">Assign roles to users.</p>
                     <a href="{{ url_for('admin.users') }}" class="btn btn-primary">Go to Users</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Manage Group Permissions</h5>
+                    <p class="card-text">Manage LDAP group access to modules.</p>
+                    <a href="{{ url_for('admin.group_permissions') }}" class="btn btn-primary">Go to Groups</a>
                 </div>
             </div>
         </div>

@@ -1,109 +1,116 @@
-$(document).ready(function() {
-    // Save Permissions via AJAX
-    $('.save-perms-btn').click(function() {
-        const btn = $(this);
-        const roleId = btn.data('role-id');
-        const originalText = btn.html();
-        
-        // Collect checked modules within the specific card
-        const card = btn.closest('.group-card');
-        const checkedBoxes = card.find('.module-check:checked');
-        const modules = [];
-        
-        checkedBoxes.each(function() {
-            modules.push($(this).val());
-        });
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Helper Functions ---
+    function notify(type, message) {
+        if (typeof toastr !== 'undefined' && toastr[type]) {
+            toastr[type](message);
+        } else {
+            alert((type === 'success' ? 'Meldung: ' : 'Fehler: ') + message);
+        }
+    }
 
-        // Show loading state
-        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+    // --- Save Permissions Logic ---
+    const saveButtons = document.querySelectorAll('.save-perms-btn');
+    if (saveButtons.length > 0) {
+        console.log('Found ' + saveButtons.length + ' save buttons.');
+    }
 
-        // Get CSRF token
-        const csrfToken = $('meta[name="csrf-token"]').attr('content');
+    saveButtons.forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log("Save button clicked");
 
-        $.ajax({
-            url: `/admin/group-permissions/update/${roleId}`,
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ modules: modules }),
-            headers: {
-                'X-CSRFToken': csrfToken
-            },
-            success: function(response) {
-                if (response.status === 'success') {
-                    // toastr is assumed to be available
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success(response.message);
-                    } else {
-                        alert(response.message);
-                    }
-                } else {
-                    if (typeof toastr !== 'undefined') {
-                        toastr.error(response.message);
-                    } else {
-                        alert('Error: ' + response.message);
-                    }
-                }
-            },
-            error: function(xhr) {
-                let msg = 'An error occurred';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    msg = xhr.responseJSON.message;
-                }
-                if (typeof toastr !== 'undefined') {
-                    toastr.error(msg);
-                } else {
-                    alert(msg);
-                }
-            },
-            complete: function() {
-                btn.prop('disabled', false).html(originalText);
+            const roleId = this.getAttribute('data-role-id');
+            const originalText = this.innerHTML;
+            const card = this.closest('.group-card');
+            
+            // Collect checked modules
+            const checkedBoxes = card.querySelectorAll('.module-check:checked');
+            const modules = Array.from(checkedBoxes).map(cb => cb.value);
+
+            // Show loading state
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Speichern...';
+
+            // Get CSRF token
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+
+            if (!csrfToken) {
+                alert('Security Error: CSRF Token missing. Please refresh the page.');
+                this.disabled = false;
+                this.innerHTML = originalText;
+                return;
             }
+
+            // Send request
+            fetch(`/admin/group-permissions/update/${roleId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ modules: modules })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.message || 'Server Error'); });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    notify('success', data.message);
+                } else {
+                    notify('error', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                notify('error', error.message || 'Ein Fehler ist aufgetreten.');
+            })
+            .finally(() => {
+                this.disabled = false;
+                this.innerHTML = originalText;
+            });
         });
     });
 
-    // Delete Group via AJAX
-    $('.delete-group-btn').click(function() {
-        if (!confirm('Are you sure you want to delete this group?')) {
-            return;
-        }
-
-        const btn = $(this);
-        const roleId = btn.data('role-id');
-        const card = btn.closest('.group-card');
-        const csrfToken = $('meta[name="csrf-token"]').attr('content');
-
-        $.ajax({
-            url: `/admin/group-permissions/delete/${roleId}`,
-            type: 'POST',
-            headers: {
-                'X-CSRFToken': csrfToken
-            },
-            success: function(response) {
-                if (response.status === 'success') {
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success(response.message);
-                    }
-                    card.fadeOut(function() {
-                        $(this).remove();
-                        if ($('.group-card').length === 0) {
-                            $('#groups-container').html('<div class="col-md-12"><div class="alert alert-info">No groups added.</div></div>');
-                        }
-                    });
-                } else {
-                    if (typeof toastr !== 'undefined') {
-                        toastr.error(response.message);
-                    }
-                }
-            },
-            error: function(xhr) {
-                let msg = 'An error occurred';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    msg = xhr.responseJSON.message;
-                }
-                if (typeof toastr !== 'undefined') {
-                    toastr.error(msg);
-                }
+    // --- Delete Group Logic ---
+    const deleteButtons = document.querySelectorAll('.delete-group-btn');
+    
+    deleteButtons.forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            if (!confirm('Möchten Sie diese Gruppe wirklich löschen?')) {
+                return;
             }
+
+            const roleId = this.getAttribute('data-role-id');
+            const card = this.closest('.group-card');
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+
+            fetch(`/admin/group-permissions/delete/${roleId}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    notify('success', data.message);
+                    card.style.opacity = '0';
+                    setTimeout(() => { card.remove(); }, 500);
+                } else {
+                    notify('error', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                notify('error', 'Fehler beim Löschen der Gruppe.');
+            });
         });
     });
 });

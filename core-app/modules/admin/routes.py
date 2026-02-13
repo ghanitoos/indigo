@@ -148,6 +148,20 @@ def update_group_permissions(role_id):
     for mod_name in module_names:
         perm_name = f"{mod_name}.access"
         perm = Permission.query.filter_by(name=perm_name).first()
+        
+        # Robustness check: if permission doesn't exist but module does, create it
+        if not perm:
+            module = Module.query.filter_by(name=mod_name).first()
+            if module:
+                perm = Permission(
+                    name=perm_name,
+                    display_name=f"Access {module.display_name}",
+                    description=f"Access permission for {module.display_name}",
+                    module_id=module.id
+                )
+                db.session.add(perm)
+                # db.session.flush() # Not strictly needed as we just append the object
+        
         if perm:
             new_perms.append(perm)
             

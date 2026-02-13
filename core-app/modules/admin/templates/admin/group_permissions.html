@@ -1,5 +1,13 @@
 {% extends "base.html" %}
 
+{% block extra_css %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<!-- Toastr CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row mb-4">
@@ -54,11 +62,12 @@
                         <form class="permissions-form" data-role-id="{{ role.id }}">
                             <div class="module-list">
                                 {% for module in modules %}
+                                    {# Logic to check if role has permission #}
                                     {% set perm_name = module.name + '.access' %}
-                                    {% set has_perm = false %}
+                                    {% set ns = namespace(has_perm=false) %}
                                     {% for p in role.permissions %}
                                         {% if p.name == perm_name %}
-                                            {% set has_perm = true %}
+                                            {% set ns.has_perm = true %}
                                         {% endif %}
                                     {% endfor %}
                                     
@@ -66,7 +75,7 @@
                                         <input class="form-check-input module-check" type="checkbox" 
                                                id="mod_{{ role.id }}_{{ module.id }}" 
                                                value="{{ module.name }}"
-                                               {% if has_perm %}checked{% endif %}>
+                                               {% if ns.has_perm %}checked{% endif %}>
                                         <label class="form-check-label" for="mod_{{ role.id }}_{{ module.id }}">
                                             <i class="fas {{ module.icon }}"></i> {{ module.display_name }}
                                         </label>
@@ -88,7 +97,169 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/admin_groups.js') }}"></script>
+<!-- Add jQuery (Required for Select2/Toastr only) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Add Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<!-- Add Toastr JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+<!-- Initialize Select2 -->
+<script>
+    $(document).ready(function() {
+        if ($('.select2').length > 0) {
+            $('.select2').select2({
+                width: 'resolve'
+            });
+        }
+    });
+</script>
+
+<!-- INLINE Admin Groups Logic (Bypasses external file loading issues) -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("INLINE Admin Groups Script Loaded!");
+
+    // Helper: Show notification (Toastr or Alert)
+    function notify(type, message) {
+        if (typeof toastr !== 'undefined' && toastr[type]) {
+            toastr[type](message);
+        } else {
+            alert((type === 'success' ? 'Success: ' : 'Error: ') + message);
+        }
+    }
+
+    // --- Save Permissions Logic ---
+    const saveButtons = document.querySelectorAll('.save-perms-btn');
+    console.log('Found ' + saveButtons.length + ' save buttons.');
+    
+    saveButtons.forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log("Save button clicked");
+
+            const roleId = this.getAttribute('data-role-id');
+            const originalText = this.innerHTML;
+            const card = this.closest('.group-card');
+            
+            // Collect checked modules
+            const checkedBoxes = card.querySelectorAll('.module-check:checked');
+            const modules = Array.from(checkedBoxes).map(cb => cb.value);
+
+            console.log('Role:', roleId, 'Modules:', modules);
+
+            // Show loading state
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            // Get CSRF token
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+
+            if (!csrfToken) {
+                console.error('CSRF Token not found!');
+                alert('Security Error: CSRF Token missing. Please refresh the page.');
+                this.disabled = false;
+                this.innerHTML = originalText;
+                return;
+            }
+
+            // Send request via Fetch API
+            fetch(`/admin/group-permissions/update/${roleId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ modules: modules })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errData => {
+                        const error = new Error(errData.message || 'Server Error');
+                        error.status = response.status;
+                        throw error;
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Success:', data);
+                if (data.status === 'success') {
+                    notify('success', data.message);
+                } else {
+                    notify('error', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                let msg = error.message || 'An error occurred';
+                if (msg === 'Server Error') {
+                     if (error.status === 400) msg = 'Bad Request: Invalid data.';
+                     if (error.status === 403) msg = 'Permission Denied.';
+                     if (error.status === 500) msg = 'Server Error. Check logs.';
+                }
+                notify('error', msg);
+            })
+            .finally(() => {
+                this.disabled = false;
+                this.innerHTML = originalText;
+            });
+        });
+    });
+
+    // --- Delete Group Logic ---
+    const deleteButtons = document.querySelectorAll('.delete-group-btn');
+
+    deleteButtons.forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            if (!confirm('Are you sure you want to delete this group?')) {
+                return;
+            }
+
+            const roleId = this.getAttribute('data-role-id');
+            const card = this.closest('.group-card');
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+
+            fetch(`/admin/group-permissions/delete/${roleId}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    notify('success', data.message);
+                    card.style.transition = 'opacity 0.5s';
+                    card.style.opacity = '0';
+                    setTimeout(() => {
+                        card.remove();
+                        const remaining = document.querySelectorAll('.group-card');
+                        if (remaining.length === 0) {
+                            const container = document.getElementById('groups-container');
+                            if (container) {
+                                container.innerHTML = '<div class="col-md-12"><div class="alert alert-info">No groups added.</div></div>';
+                            }
+                        }
+                    }, 500);
+                } else {
+                    notify('error', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Delete Error:', error);
+                notify('error', 'Failed to delete group.');
+            });
+        });
+    });
+});
+</script>
 {% endblock %}

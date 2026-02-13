@@ -4,32 +4,80 @@ LDAP Connector for Active Directory authentication and user management.
 import logging
 import ssl
 from typing import Optional, Dict, List, Any
-from ldap3 import Server, Connection, ALL, SUBTREE, NTLM, Tls
+from ldap3 import Server, Connection, ALL, SUBTREE, NTLM, Tls, SIMPLE
 from ldap3.core.exceptions import LDAPException
 from flask import current_app
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 class LDAPConnector:
-    """
-    Connector for interacting with Samba AD DC via LDAP (Secure).
-    """
-    
     def __init__(self):
-        """Initialize LDAP connection parameters from config."""
         self.server_uri = current_app.config.get('LDAP_SERVER')
         self.bind_dn = current_app.config.get('LDAP_BIND_DN')
         self.bind_password = current_app.config.get('LDAP_BIND_PASSWORD')
         self.base_dn = current_app.config.get('LDAP_BASE_DN')
         self.user_search_base = current_app.config.get('LDAP_USER_SEARCH_BASE')
         self.group_search_base = current_app.config.get('LDAP_GROUP_SEARCH_BASE')
-        self.is_dev = current_app.config.get('FLASK_ENV') == 'development'
+        
+        # Determine Dev Mode
+        env = current_app.config.get('FLASK_ENV')
+        self.is_dev = (env == 'development')
+
+        # Initialize connection as None
+        self.connection = None
+        self._init_connection()
+
+    def _init_connection(self):
+        """Initialize LDAP connection object."""
+        if not self.server_uri:
+            return
+
+        try:
+            # Create Server object with TLS (ignore self-signed certs)
+            tls_conf = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLSv1_2)
+            self.server = Server(self.server_uri, use_ssl=True, tls=tls_conf, get_info=ALL)
+            
+            # Initialize Connection (Bind later)
+            # Default to NTLM if needed, or allow auto-negotiation
+            self.connection = Connection(
+                self.server, 
+                user=self.bind_dn, 
+                password=self.bind_password,
+                authentication=NTLM, # Default for AD often NTLM
+                auto_bind=False
+            )
+        except Exception as e:
+            logger.error(f"Failed to initialize LDAP connection: {e}")
+
+    def _bind_service_user(self):
+        """Helper to bind with service account."""
+        if not self.connection:
+            return False
+            
+        try:
+            # Try simple bind first (often works if DN is correct)
+            self.connection.authentication = SIMPLE
+            if self.connection.bind():
+                return True
+                
+            # If simple fails, try NTLM
+            self.connection.authentication = NTLM
+            if self.connection.bind():
+                return True
+                
+            logger.error("Failed to bind service user with both SIMPLE and NTLM.")
+            return False
+        except Exception as e:
+            logger.error(f"Error binding service user: {e}")
+            return False
 
     def authenticate(self, username, password) -> bool:
         """
-        Authenticate a user against the LDAP server.
+        Authenticate user against LDAP.
         """
+        # 1. Dev Mode Bypass
         if self.is_dev and username == 'admin' and password == 'admin':
             logger.info("Authenticated using Demo Mode (admin/admin)")
             return True
@@ -37,72 +85,50 @@ class LDAPConnector:
         if not username or not password:
             return False
 
+        if not self.bind_dn or not self.bind_password:
+            logger.error("LDAP Bind DN or Password not configured.")
+            return False
+
         try:
-            # Configure TLS to accept self-signed certificates
-            tls_config = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLSv1_2)
-            
-            # Use use_ssl=True if connecting to port 636 (ldaps://)
-            # If server_uri starts with ldaps://, ldap3 handles SSL automatically, 
-            # but we still need to pass tls=tls_config to disable verification.
-            use_ssl = self.server_uri.lower().startswith('ldaps://')
-            
-            server = Server(self.server_uri, get_info=ALL, tls=tls_config)
-            
-            # 1. Bind with Service Account
-            if not self.bind_dn or not self.bind_password:
-                logger.warning("LDAP Bind DN or Password not configured.")
+            # 2. Bind with Service Account
+            if not self._bind_service_user():
                 return False
-                
-            # Try simple bind first (usually works over SSL)
-            # If fail, fallback to NTLM
-            try:
-                conn = Connection(server, user=self.bind_dn, password=self.bind_password, auto_bind=True)
-            except Exception as e:
-                logger.warning(f"Simple bind failed: {e}. Trying NTLM...")
-                conn = Connection(server, user=self.bind_dn, password=self.bind_password, authentication=NTLM, auto_bind=True)
-            
-            # 2. Search for User DN
+
+            # 3. Search for User DN
             search_base = f"{self.user_search_base},{self.base_dn}" if self.user_search_base else self.base_dn
             search_filter = f'(&(objectClass=user)(sAMAccountName={username}))'
             
-            conn.search(
+            self.connection.search(
                 search_base=search_base,
                 search_filter=search_filter,
                 attributes=['distinguishedName']
             )
-            
-            if not conn.entries:
+
+            if not self.connection.entries:
                 logger.warning(f"User {username} not found in LDAP.")
                 return False
-                
-            user_dn = conn.entries[0].distinguishedName.value
-            
-            # 3. Authenticate User (Bind as User)
-            # Try Simple Bind first (best for LDAPS)
-            try:
-                user_conn = Connection(server, user=user_dn, password=password)
-                if user_conn.bind():
-                    user_conn.unbind()
-                    conn.unbind()
-                    return True
-            except Exception as e:
-                logger.warning(f"User simple bind failed: {e}")
-            
-            # Fallback to NTLM if simple bind fails
-            # NTLM needs DOMAIN\user
-            domain_part = self.base_dn.split(',')[0].split('=')[1]
-            ntlm_user = f"{domain_part.upper()}\\{username}"
-            
-            try:
-                user_conn = Connection(server, user=ntlm_user, password=password, authentication=NTLM)
-                if user_conn.bind():
-                    user_conn.unbind()
-                    conn.unbind()
-                    return True
-            except Exception as e:
-                logger.warning(f"User NTLM bind failed: {e}")
 
-            conn.unbind()
+            user_dn = self.connection.entries[0].distinguishedName.value
+
+            # 4. Attempt Bind as User
+            # Try Simple Bind with DN
+            try:
+                user_conn = Connection(self.server, user=user_dn, password=password, authentication=SIMPLE, auto_bind=True)
+                user_conn.unbind()
+                return True
+            except Exception as e:
+                logger.debug(f"User simple bind failed: {e}")
+
+            # Try NTLM (DOMAIN\User)
+            try:
+                domain_part = self.base_dn.split(',')[0].split('=')[1]
+                ntlm_user = f"{domain_part.upper()}\\{username}"
+                user_conn = Connection(self.server, user=ntlm_user, password=password, authentication=NTLM, auto_bind=True)
+                user_conn.unbind()
+                return True
+            except Exception as e:
+                logger.debug(f"User NTLM bind failed: {e}")
+
             return False
 
         except LDAPException as e:
@@ -113,45 +139,42 @@ class LDAPConnector:
             return False
 
     def get_user_info(self, username) -> Optional[Dict[str, Any]]:
-        """Retrieve user information from LDAP."""
+        """
+        Get user details (Display Name, Email, Groups).
+        """
         if self.is_dev and username == 'admin':
             return {
                 'username': 'admin',
-                'display_name': 'Administrator',
-                'email': 'admin@local.test',
-                'groups': ['Admins']
+                'display_name': 'Administrator (Demo)',
+                'email': 'admin@demo.local',
+                'groups': ['Domain Admins', 'Schema Admins']
             }
 
         try:
-            tls_config = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLSv1_2)
-            server = Server(self.server_uri, get_info=ALL, tls=tls_config)
-            
-            try:
-                conn = Connection(server, user=self.bind_dn, password=self.bind_password, auto_bind=True)
-            except:
-                conn = Connection(server, user=self.bind_dn, password=self.bind_password, authentication=NTLM, auto_bind=True)
-            
+            if not self._bind_service_user():
+                return None
+
             search_base = f"{self.user_search_base},{self.base_dn}" if self.user_search_base else self.base_dn
             search_filter = f'(&(objectClass=user)(sAMAccountName={username}))'
-            
-            conn.search(
+            attributes = ['displayName', 'mail', 'sAMAccountName', 'memberOf']
+
+            self.connection.search(
                 search_base=search_base,
                 search_filter=search_filter,
-                attributes=['displayName', 'mail', 'sAMAccountName', 'memberOf']
+                attributes=attributes
             )
+
+            if not self.connection.entries:
+                return None
+
+            entry = self.connection.entries[0]
             
-            if conn.entries:
-                entry = conn.entries[0]
-                result = {
-                    'username': str(entry.sAMAccountName),
-                    'display_name': str(entry.displayName) if entry.displayName else username,
-                    'email': str(entry.mail) if entry.mail else None,
-                    'groups': self._parse_groups(entry.memberOf) if entry.memberOf else []
-                }
-                conn.unbind()
-                return result
-            conn.unbind()
-            return None
+            return {
+                'username': str(entry.sAMAccountName),
+                'display_name': str(entry.displayName) if entry.displayName else username,
+                'email': str(entry.mail) if entry.mail else '',
+                'groups': self._parse_groups(entry.memberOf.values if entry.memberOf else [])
+            }
 
         except Exception as e:
             logger.error(f"Error getting user info: {e}")
@@ -163,7 +186,7 @@ class LDAPConnector:
 
     def get_all_groups(self) -> List[Dict]:
         """Get all LDAP groups."""
-        if self.dev_mode:
+        if hasattr(self, 'is_dev') and self.is_dev:
             # Mock groups for dev mode testing
             return [
                 {'cn': 'Domain Admins', 'dn': 'CN=Domain Admins,CN=Users,DC=example,DC=com', 'member_count': 5},
@@ -172,8 +195,9 @@ class LDAPConnector:
             ]
 
         try:
-            if not self.connection.bind():
-                logger.error("LDAP Bind failed for fetching groups")
+            # Bind using helper to ensure correct auth method
+            if not self._bind_service_user():
+                logger.error("Bind failed in get_all_groups")
                 return []
 
             search_base = self.base_dn
@@ -198,12 +222,13 @@ class LDAPConnector:
                     'member_count': len(members),
                     'members': members
                 })
-
+            
+            # Sort by CN
+            groups.sort(key=lambda x: x['cn'])
             return groups
         except Exception as e:
             logger.error(f"Error fetching groups: {e}")
             return []
-
 
     def _parse_groups(self, member_of_list) -> List[str]:
         groups = []

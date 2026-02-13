@@ -7,6 +7,7 @@
     "permissions": [
         {"name": "admin.roles.read", "display_name": "View Roles"},
         {"name": "admin.roles.write", "display_name": "Manage Roles"},
-        {"name": "admin.users.manage", "display_name": "Manage User Roles"}
+        {"name": "admin.users.manage", "display_name": "Manage User Roles"},
+        {"name": "admin.groups.manage", "display_name": "Manage Group Permissions"}
     ]
 }
