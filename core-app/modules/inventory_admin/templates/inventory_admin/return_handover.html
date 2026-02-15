@@ -17,7 +17,7 @@
         <h4>Empfänger (optional)</h4>
         <div class="mb-3 position-relative">
           <label class="form-label">LDAP Suche</label>
-          <input type="text" id="receiver-search" class="form-control" placeholder="Name suchen...">
+          <input type="text" id="receiver-search" class="form-control" placeholder="Name suchen..." autocomplete="off">
           <div id="receiver-results" class="list-group position-absolute w-100" style="z-index:1000;"></div>
         </div>
         <input type="hidden" id="receiver_id" name="receiver_id">
@@ -78,7 +78,10 @@
           data.forEach(user => {
             const item = document.createElement('a');
             item.href = '#'; item.className = 'list-group-item list-group-item-action';
-            item.innerHTML = `<strong>${user.display_name}</strong> <small class="text-muted">(${user.department})</small>`;
+                    const display = user.display_name || user.ldap_username || '';
+                    const dept = user.department ? ` <small class="text-muted">(${user.department})</small>` : '';
+                    if (!display) return; // skip empty items
+                    item.innerHTML = `<strong>${display}</strong>${dept}`;
             item.addEventListener('click', function(e){ e.preventDefault(); fillUser(type, user); results.innerHTML=''; input.value=''; });
             results.appendChild(item);
           });
