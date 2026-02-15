@@ -1,12 +1,22 @@
 /* Styles for printable inventory protocol */
 /* Screen presentation tweaks */
-.protocol-document { max-width: 800px; margin: 0 auto; background: #fff; padding: 24px; border: 1px solid #e1e1e1; }
-.protocol-header { display:flex; align-items:flex-start; gap:12px; }
-.protocol-header .logo { max-height:90px; }
-.protocol-header .logo-container { margin-left:12px; }
-.protocol-header .logo { margin-left:12px; }
-.protocol-header .logo-placeholder { width:120px; height:80px; border:1px solid #e1e1e1; display:flex; align-items:center; justify-content:center; }
-.proto-number { white-space:nowrap; }
+.protocol-document { max-width: 190mm; margin: 0 auto; background: #fff; padding: 18mm; border: none; }
+.protocol-header { position:relative; }
+.logo-top-right, .logo-container { position:absolute; right:18mm; top:12mm; }
+.logo { max-height:60px; display:block; }
+.logo-placeholder { width:120px; height:80px; border:1px solid #e1e1e1; display:flex; align-items:center; justify-content:center; }
+.protocol-title-centered { text-align:center; font-weight:700; font-size:11pt; margin-top:6mm; }
+.proto-topline { display:flex; justify-content:space-between; margin-top:4mm; }
+.proto-left .proto-label, .proto-right .proto-label { font-size:11pt; font-weight:600; }
+.proto-left .proto-value, .proto-right .proto-value { font-size:11pt; }
+.device-block { margin-top:12mm; }
+.device-line { font-size:11pt; margin-bottom:6px; }
+.party-row { display:flex; justify-content:space-between; margin-top:18mm; }
+.party-col { width:48%; }
+.party-title { font-weight:700; font-size:11pt; margin-bottom:6px; }
+.party-name { font-size:11pt; margin-bottom:10px; }
+.signature-line { border-top:1px solid #000; width:80%; margin-top:10px; }
+.signature-label { font-size:10pt; margin-top:6px; }
 .protocol-title { text-align:center; margin-top:8px; margin-bottom:18px; font-weight:700; }
 .protocol-meta { margin-bottom:12px; }
 .protocol-table { width:100%; }
