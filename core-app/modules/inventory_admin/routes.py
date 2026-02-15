@@ -321,6 +321,9 @@ def return_handover_no_csrf(handover_id):
         handover.notes = (handover.notes or '') + '\n\nReturn notes: ' + notes
     db.session.commit()
     flash('Rückgabe vermerkt.', 'success')
+    # redirect to return protocol if a return date was recorded
+    if handover.return_date:
+        return redirect(url_for('inventory_admin.protocol_return', handover_id=handover.id))
     return redirect(url_for('inventory_admin.protocol', handover_id=handover.id))
 
 
