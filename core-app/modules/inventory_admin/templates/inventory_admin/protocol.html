@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-12 text-center mb-4">
+      {% if logo_url %}
+        <img src="{{ logo_url }}" alt="Logo" style="max-height:80px;">
+      {% else %}
+        <h2>Inventarprotokoll</h2>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h4>Protokoll: {{ handover.protocol_number }}</h4>
+      <p><strong>Gerät:</strong> {{ handover.device.model_name }} ({{ handover.device.inventory_number }})</p>
+      <p><strong>Seriennummer:</strong> {{ handover.device.serial_number or '-' }}</p>
+      <hr>
+      <div class="row">
+        <div class="col-md-6">
+          <h5>Übergeber</h5>
+          <p>{{ handover.giver.first_name }} {{ handover.giver.last_name }}</p>
+          <p class="text-muted">{{ handover.giver.ldap_username }}</p>
+        </div>
+        <div class="col-md-6">
+          <h5>Empfänger</h5>
+          <p>{{ handover.receiver.first_name }} {{ handover.receiver.last_name }}</p>
+          <p class="text-muted">{{ handover.receiver.ldap_username }}</p>
+        </div>
+      </div>
+
+      <hr>
+      <p><strong>Übergabedatum:</strong> {{ handover.handover_date.strftime('%Y-%m-%d') }}</p>
+      <p><strong>Rückgabedatum:</strong> {{ handover.return_date.strftime('%Y-%m-%d') if handover.return_date else '-' }}</p>
+
+      <h6>Notizen</h6>
+      <pre style="white-space:pre-wrap">{{ handover.notes or '' }}</pre>
+
+      <div class="mt-3">
+        <a href="javascript:window.print()" class="btn btn-primary">Drucken / Als PDF</a>
+        {% if not handover.return_date %}
+          <a href="{{ url_for('inventory_admin.return_handover', handover_id=handover.id) }}" class="btn btn-secondary">Rückgabe vermerken</a>
+        {% endif %}
+        <a href="{{ url_for('inventory_admin.index') }}" class="btn btn-link">Zurück</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

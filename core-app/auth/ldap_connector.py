@@ -25,8 +25,8 @@ class LDAPConnector:
         env = current_app.config.get('FLASK_ENV')
         self.is_dev = (env == 'development')
 
-        # Initialize connection as None
-        self.connectionection = None
+            # Initialize connection as None
+            self.connection = None
         self._init_connection()
 
     def _init_connection(self):
@@ -41,7 +41,7 @@ class LDAPConnector:
             
             # Initialize Connection (Bind later)
             # Default to NTLM if needed, or allow auto-negotiation
-            self.connectionection = Connection(
+                self.connection = Connection(
                 self.server, 
                 user=self.bind_dn, 
                 password=self.bind_password,
@@ -53,18 +53,18 @@ class LDAPConnector:
 
     def _bind_service_user(self):
         """Helper to bind with service account."""
-        if not self.connectionection:
+            if not self.connection:
             return False
             
         try:
             # Try simple bind first (often works if DN is correct)
-            self.connectionection.authentication = SIMPLE
-            if self.connectionection.bind():
+                self.connection.authentication = SIMPLE
+                if self.connection.bind():
                 return True
                 
             # If simple fails, try NTLM
-            self.connectionection.authentication = NTLM
-            if self.connectionection.bind():
+                self.connection.authentication = NTLM
+                if self.connection.bind():
                 return True
                 
             logger.error("Failed to bind service user with both SIMPLE and NTLM.")
@@ -98,7 +98,7 @@ class LDAPConnector:
             search_base = f"{self.user_search_base},{self.base_dn}" if self.user_search_base else self.base_dn
             search_filter = f'(&(objectClass=user)(sAMAccountName={username}))'
             
-            self.connectionection.search(
+                self.connection.search(
                 search_base=search_base,
                 search_filter=search_filter,
                 attributes=['distinguishedName']
@@ -158,7 +158,7 @@ class LDAPConnector:
             search_filter = f'(&(objectClass=user)(sAMAccountName={username}))'
             attributes = ['displayName', 'mail', 'sAMAccountName', 'memberOf']
 
-            self.connectionection.search(
+                self.connection.search(
                 search_base=search_base,
                 search_filter=search_filter,
                 attributes=attributes
@@ -204,7 +204,7 @@ class LDAPConnector:
             search_filter = '(objectClass=group)'
             attributes = ['cn', 'distinguishedName', 'member']
 
-            self.connectionection.search(
+                self.connection.search(
                 search_base=search_base,
                 search_filter=search_filter,
                 attributes=attributes
@@ -267,7 +267,7 @@ class LDAPConnector:
         search_filter = f'(&(objectClass=user)(|(sAMAccountName=*{query}*)(givenName=*{query}*)(sn=*{query}*)(displayName=*{query}*)))'
         
         try:
-            self.connection.search(
+                self.connection.search(
                 search_base=self.user_search_base,
                 search_filter=search_filter,
                 attributes=['sAMAccountName', 'givenName', 'sn', 'department', 'displayName']

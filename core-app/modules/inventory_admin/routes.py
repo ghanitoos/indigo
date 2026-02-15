@@ -1,6 +1,6 @@
 from flask import render_template, redirect, url_for, flash, request, jsonify, current_app, send_from_directory
 from flask_login import login_required, current_user
-from extensions import db
+from werkzeug.utils import secure_filename
 from models.inventory import Device, PersonRef, Handover, InventorySettings
 from auth.ldap_connector import LDAPConnector
 from auth.permissions import require_permission
@@ -8,6 +8,7 @@ from . import inventory_admin_bp
 from .forms import DeviceForm, HandoverForm
 from datetime import datetime
 import os
+from extensions import db
 
 @inventory_admin_bp.route('/')
 @login_required
@@ -133,7 +134,8 @@ def handover_device(id):
         db.session.commit()
 
         flash('Übergabe erfolgreich gespeichert.', 'success')
-        return redirect(url_for('inventory_admin.index'))
+        # Redirect to printable protocol for immediate printing
+        return redirect(url_for('inventory_admin.protocol', handover_id=handover.id))
 
     return render_template('inventory_admin/handover.html', form=form, device=device)
 
@@ -174,3 +176,74 @@ def api_autocomplete():
     else:
         vals = [r[0] for r in db.session.query(Device.device_type).filter(Device.device_type.ilike(f"%{q}%")).distinct().limit(10).all()]
     return jsonify(vals)
+
+
+@inventory_admin_bp.route('/uploads/<path:filename>')
+@login_required
+def uploaded_file(filename):
+    upload_dir = current_app.config.get('INVENTORY_UPLOAD_FOLDER') or os.path.join(os.getcwd(), 'data', 'uploads')
+    return send_from_directory(upload_dir, filename)
+
+
+@inventory_admin_bp.route('/logo', methods=['GET', 'POST'])
+@login_required
+@require_permission('inventory_admin.edit')
+def upload_logo():
+    """Simple logo upload for printable protocols."""
+    if request.method == 'POST':
+        f = request.files.get('logo')
+        if not f:
+            flash('Keine Datei ausgewählt.', 'warning')
+            return redirect(url_for('inventory_admin.upload_logo'))
+
+        upload_dir = current_app.config.get('INVENTORY_UPLOAD_FOLDER') or os.path.join(os.getcwd(), 'data', 'uploads')
+        os.makedirs(upload_dir, exist_ok=True)
+        filename = secure_filename(f.filename)
+        # Normalize filename to logo.ext
+        ext = os.path.splitext(filename)[1] or '.png'
+        dest = os.path.join(upload_dir, 'logo' + ext)
+        f.save(dest)
+        flash('Logo erfolgreich hochgeladen.', 'success')
+        return redirect(url_for('inventory_admin.index'))
+
+    return render_template('inventory_admin/upload_logo.html')
+
+
+@inventory_admin_bp.route('/handovers/<int:handover_id>/return', methods=['GET', 'POST'])
+@login_required
+@require_permission('inventory_admin.handover')
+def return_handover(handover_id):
+    handover = Handover.query.get_or_404(handover_id)
+    if request.method == 'POST':
+        # record return
+        rd = request.form.get('return_date')
+        notes = request.form.get('notes', '')
+        try:
+            if rd:
+                handover.return_date = datetime.strptime(rd, '%Y-%m-%d').date()
+        except Exception:
+            pass
+        if notes:
+            handover.notes = (handover.notes or '') + '\n\nReturn notes: ' + notes
+        db.session.commit()
+        flash('Rückgabe vermerkt.', 'success')
+        return redirect(url_for('inventory_admin.protocol', handover_id=handover.id))
+
+    return render_template('inventory_admin/return_handover.html', handover=handover)
+
+
+@inventory_admin_bp.route('/handovers/<int:handover_id>/protocol')
+@login_required
+@require_permission('inventory_admin.access')
+def protocol(handover_id):
+    handover = Handover.query.get_or_404(handover_id)
+    upload_dir = current_app.config.get('INVENTORY_UPLOAD_FOLDER') or os.path.join(os.getcwd(), 'data', 'uploads')
+    logo_url = None
+    # prefer png/jpg if exists
+    for ext in ('.png', '.jpg', '.jpeg', '.svg'):
+        p = os.path.join(upload_dir, 'logo' + ext)
+        if os.path.exists(p):
+            logo_url = url_for('inventory_admin.uploaded_file', filename='logo' + ext)
+            break
+
+    return render_template('inventory_admin/protocol.html', handover=handover, logo_url=logo_url)

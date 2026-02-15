@@ -42,30 +42,19 @@
                     </div>
                     
                     <!-- Giver Section -->
-                    <div class="col-md-6">
-                        <h4>Übergeber</h4>
-                        <div class="mb-3 position-relative">
-                            <label class="form-label">LDAP Suche</label>
-                            <input type="text" id="giver-search" class="form-control" placeholder="Name suchen...">
-                            <div id="giver-results" class="list-group position-absolute w-100" style="z-index: 1000;"></div>
+                        <!-- Giver Section (prefilled from current user) -->
+                        <div class="col-md-6">
+                            <h4>Übergeber</h4>
+                            <div class="card p-3">
+                                <p class="mb-1"><strong>{{ current_user.display_name or current_user.username }}</strong></p>
+                                <p class="text-muted mb-0">Benutzer: {{ current_user.username }}</p>
+                            </div>
+                            {{ form.giver_id }}
+                            {{ form.giver_ldap_username(value=current_user.username) }}
+                            {{ form.giver_first_name(value=(current_user.display_name.split(' ',1)[0] if current_user.display_name else '')) }}
+                            {{ form.giver_last_name(value=(current_user.display_name.split(' ',1)[1] if current_user.display_name and ' ' in current_user.display_name else '')) }}
+                            {{ form.giver_department }}
                         </div>
-                        
-                        {{ form.giver_id }}
-                        {{ form.giver_ldap_username }}
-                        
-                        <div class="mb-3">
-                            {{ form.giver_first_name.label(class="form-label") }}
-                            {{ form.giver_first_name(class="form-control") }}
-                        </div>
-                        <div class="mb-3">
-                            {{ form.giver_last_name.label(class="form-label") }}
-                            {{ form.giver_last_name(class="form-control") }}
-                        </div>
-                        <div class="mb-3">
-                            {{ form.giver_department.label(class="form-label") }}
-                            {{ form.giver_department(class="form-control") }}
-                        </div>
-                    </div>
                 </div>
                 
                 <hr>
@@ -90,7 +79,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     setupSearch('receiver');
-    setupSearch('giver');
 });
 
 function setupSearch(type) {
