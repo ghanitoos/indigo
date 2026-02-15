@@ -5,9 +5,7 @@
   <div class="protocol-header">
     <div class="header-left"></div>
     <div class="header-center">
-      <div class="protocol-title-centered">
-        <div class="protocol-title-box">{% if is_return %}Rückgabeprotokoll{% else %}Übergabeprotokoll{% endif %}</div>
-      </div>
+      <!-- title is rendered below the header to ensure visibility under the logo -->
     </div>
     <div class="header-right">
       {% if logo_url %}
@@ -17,6 +15,11 @@
       {% endif %}
       <div class="logo-date">{{ handover.handover_date.strftime('%d.%m.%Y') }}</div>
     </div>
+  </div>
+
+  <!-- Centered title one line below the logo -->
+  <div class="protocol-title-row">
+    <div class="protocol-title-centered">{% if is_return %}Rückgabeprotokoll{% else %}Übergabeprotokoll{% endif %}</div>
   </div>
 
   <div class="mt-1 proto-topline">
