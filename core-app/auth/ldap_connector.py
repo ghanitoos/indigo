@@ -249,10 +249,11 @@ class LDAPConnector:
         if not self._bind_service_user():
             return []
 
+        search_base = f"{self.user_search_base},{self.base_dn}" if self.user_search_base else self.base_dn
         search_filter = f'(&(objectClass=user)(|(sAMAccountName=*{query}*)(givenName=*{query}*)(sn=*{query}*)(displayName=*{query}*)))'
         try:
             self.connection.search(
-                search_base=self.user_search_base,
+                search_base=search_base,
                 search_filter=search_filter,
                 attributes=['sAMAccountName', 'givenName', 'sn', 'department', 'displayName'],
             )
