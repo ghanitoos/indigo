@@ -12,18 +12,19 @@
         <div class="row">
             <div class="col-md-6 mb-3">
                 {{ form.inventory_number.label(class="form-label") }}
-                {{ form.inventory_number(class="form-control") }}
+                {{ form.inventory_number(class="form-control", placeholder="Leer lassen für automatische Vergabe") }}
+                <small class="form-text text-muted">Wenn leer gelassen, wird eine Inventarnummer automatisch erstellt (Format: ITYY0001).</small>
             </div>
             <div class="col-md-6 mb-3">
                 {{ form.device_type.label(class="form-label") }}
-                {{ form.device_type(class="form-control") }}
+                {{ form.device_type(class="form-control", id='device_type') }}
             </div>
         </div>
 
         <div class="row">
             <div class="col-md-6 mb-3">
                 {{ form.model_name.label(class="form-label") }}
-                {{ form.model_name(class="form-control") }}
+                {{ form.model_name(class="form-control", id='model_name') }}
             </div>
             <div class="col-md-6 mb-3">
                 {{ form.serial_number.label(class="form-label") }}
@@ -50,4 +51,47 @@
         <a href="{{ url_for('inventory_admin.index') }}" class="btn btn-secondary">Abbrechen</a>
     </form>
 </div>
+
+{% block scripts %}
+<script>
+// fetch next-number preview when page loads
+fetch('{{ url_for("inventory_admin.api_next_number") }}')
+  .then(r => r.json())
+  .then(j => {
+    const invField = document.getElementById('inventory_number') || document.querySelector('input[name="inventory_number"]');
+    if(invField && !invField.value) {
+      invField.placeholder = j.next + ' (wird beim Speichern vergeben)';
+    }
+  }).catch(()=>{});
+
+// simple autocomplete using datalist
+function attachAuto(fieldId, name){
+  const input = document.getElementById(fieldId);
+  if(!input) return;
+  input.addEventListener('input', function(e){
+    const q = input.value;
+    if(q.length < 2) return;
+    fetch('{{ url_for("inventory_admin.api_autocomplete") }}?field='+name+'&q='+encodeURIComponent(q))
+      .then(r=>r.json()).then(list=>{
+        // create datalist dynamically
+        let dlId = fieldId+'_dl';
+        let dl = document.getElementById(dlId);
+        if(!dl){
+          dl = document.createElement('datalist');
+          dl.id = dlId;
+          document.body.appendChild(dl);
+          input.setAttribute('list', dlId);
+        }
+        dl.innerHTML = '';
+        list.forEach(v=>{
+          let o = document.createElement('option'); o.value = v; dl.appendChild(o);
+        });
+      }).catch(()=>{});
+  });
+}
+attachAuto('model_name','model_name');
+attachAuto('device_type','device_type');
+</script>
+{% endblock %}
+
 {% endblock %}

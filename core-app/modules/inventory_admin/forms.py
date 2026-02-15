@@ -3,7 +3,7 @@ from wtforms import StringField, TextAreaField, BooleanField, DateField, HiddenF
 from wtforms.validators import DataRequired, Optional
 
 class DeviceForm(FlaskForm):
-    inventory_number = StringField('Inventarnummer', validators=[DataRequired()])
+    inventory_number = StringField('Inventarnummer', validators=[Optional()])
     device_type = StringField('Gerätetyp', validators=[DataRequired()])
     model_name = StringField('Modell', validators=[DataRequired()])
     serial_number = StringField('Seriennummer', validators=[Optional()])

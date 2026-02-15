@@ -1,12 +1,13 @@
-from flask import render_template, redirect, url_for, flash, request, jsonify, current_app
+from flask import render_template, redirect, url_for, flash, request, jsonify, current_app, send_from_directory
 from flask_login import login_required, current_user
 from extensions import db
-from models.inventory import Device, PersonRef, Handover
+from models.inventory import Device, PersonRef, Handover, InventorySettings
 from auth.ldap_connector import LDAPConnector
 from auth.permissions import require_permission
 from . import inventory_admin_bp
 from .forms import DeviceForm, HandoverForm
 from datetime import datetime
+import os
 
 @inventory_admin_bp.route('/')
 @login_required
@@ -21,8 +22,22 @@ def index():
 def add_device():
     form = DeviceForm()
     if form.validate_on_submit():
+        # Auto-generate inventory number if not provided
+        inv_num = form.inventory_number.data
+        if not inv_num:
+            year = datetime.now().year % 100
+            key = f"inventory_seq_{year}"
+            setting = InventorySettings.query.filter_by(key=key).first()
+            if not setting:
+                setting = InventorySettings(key=key, value='0')
+                db.session.add(setting)
+                db.session.flush()
+            seq = int(setting.value or '0') + 1
+            setting.value = str(seq)
+            inv_num = f"IT{year:02d}{seq:04d}"
+
         device = Device(
-            inventory_number=form.inventory_number.data,
+            inventory_number=inv_num,
             device_type=form.device_type.data,
             model_name=form.model_name.data,
             serial_number=form.serial_number.data,
@@ -55,24 +70,29 @@ def edit_device(id):
 def handover_device(id):
     device = Device.query.get_or_404(id)
     form = HandoverForm()
-    
+
     if request.method == 'GET':
         form.handover_date.data = datetime.today()
-        # Optional: pre-fill giver if we can identify them from LDAP
-        ldap = LDAPConnector()
-        # We might add current user info fetch here if needed
+        # Pre-fill giver from current_user profile if available
+        try:
+            form.giver_ldap_username.data = current_user.username
+            if current_user.display_name:
+                parts = current_user.display_name.split(' ', 1)
+                form.giver_first_name.data = parts[0]
+                form.giver_last_name.data = parts[1] if len(parts) > 1 else ''
+        except Exception:
+            pass
 
     if form.validate_on_submit():
         # Handle Receiver
         receiver = None
         if form.receiver_id.data:
             receiver = PersonRef.query.get(form.receiver_id.data)
-        
+
         if not receiver:
             # Create or find by username if provided
             if form.receiver_ldap_username.data:
                 receiver = PersonRef.query.filter_by(ldap_username=form.receiver_ldap_username.data).first()
-            
             if not receiver:
                 receiver = PersonRef(
                     ldap_username=form.receiver_ldap_username.data,
@@ -81,16 +101,15 @@ def handover_device(id):
                     department=form.receiver_department.data
                 )
                 db.session.add(receiver)
-        
+
         # Handle Giver
         giver = None
         if form.giver_id.data:
             giver = PersonRef.query.get(form.giver_id.data)
-            
+
         if not giver:
             if form.giver_ldap_username.data:
                 giver = PersonRef.query.filter_by(ldap_username=form.giver_ldap_username.data).first()
-                
             if not giver:
                 giver = PersonRef(
                     ldap_username=form.giver_ldap_username.data,
@@ -99,7 +118,7 @@ def handover_device(id):
                     department=form.giver_department.data
                 )
                 db.session.add(giver)
-        
+
         db.session.flush()
 
         handover = Handover(
@@ -112,7 +131,7 @@ def handover_device(id):
         )
         db.session.add(handover)
         db.session.commit()
-        
+
         flash('Übergabe erfolgreich gespeichert.', 'success')
         return redirect(url_for('inventory_admin.index'))
 
@@ -124,7 +143,34 @@ def search_users():
     query = request.args.get('q', '')
     if len(query) < 2:
         return jsonify([])
-    
+
     ldap = LDAPConnector()
     users = ldap.search_users(query)
     return jsonify(users)
+
+@inventory_admin_bp.route('/api/next-number')
+@login_required
+@require_permission('inventory_admin.create')
+def api_next_number():
+    """Return the next inventory number preview (does not reserve it)."""
+    year = datetime.now().year % 100
+    key = f"inventory_seq_{year}"
+    setting = InventorySettings.query.filter_by(key=key).first()
+    seq = int(setting.value or '0') + 1 if setting else 1
+    inv_num = f"IT{year:02d}{seq:04d}"
+    return jsonify({'next': inv_num})
+
+@inventory_admin_bp.route('/api/autocomplete')
+@login_required
+@require_permission('inventory_admin.access')
+def api_autocomplete():
+    q = request.args.get('q', '')
+    field = request.args.get('field', 'model_name')
+    if not q or field not in ('model_name', 'device_type'):
+        return jsonify([])
+    vals = []
+    if field == 'model_name':
+        vals = [r[0] for r in db.session.query(Device.model_name).filter(Device.model_name.ilike(f"%{q}%")).distinct().limit(10).all()]
+    else:
+        vals = [r[0] for r in db.session.query(Device.device_type).filter(Device.device_type.ilike(f"%{q}%")).distinct().limit(10).all()]
+    return jsonify(vals)

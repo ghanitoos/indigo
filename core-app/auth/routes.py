@@ -61,6 +61,23 @@ def login():
                         if gr not in user.roles:
                             user.roles.append(gr)
 
+                # Ensure a PersonRef exists for this LDAP user so my-devices works
+                try:
+                    from models.inventory import PersonRef
+                    if user.username:
+                        person = PersonRef.query.filter_by(ldap_username=user.username).first()
+                        if not person:
+                            # attempt to split display_name to first/last
+                            first=''; last=''
+                            if user.display_name:
+                                parts=user.display_name.split(' ',1)
+                                first=parts[0]
+                                last=parts[1] if len(parts)>1 else ''
+                            person = PersonRef(ldap_username=user.username, first_name=first or user.username, last_name=last or '')
+                            db.session.add(person)
+                except Exception:
+                    pass
+
             user.last_login = datetime.utcnow()
             user.is_active = True
             db.session.commit()
