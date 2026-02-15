@@ -3,28 +3,24 @@
 {% block content %}
 <div class="container mt-4 protocol-document">
   <div class="protocol-header">
-    <div class="logo-top-right">
+    <div class="header-left"></div>
+    <div class="header-center">
+      <div class="protocol-title-centered">{% if is_return %}Rückgabeprotokoll{% else %}Übergabeprotokoll{% endif %}</div>
+    </div>
+    <div class="header-right">
       {% if logo_url %}
         <img src="{{ logo_url }}" alt="Logo" class="logo">
       {% else %}
         <div class="logo-placeholder">Logo</div>
       {% endif %}
+      <div class="logo-date">{{ handover.handover_date.strftime('%d.%m.%Y') }}</div>
     </div>
-
-    <div class="protocol-title-wrap">
-      <div class="protocol-title-centered">{% if is_return %}Rückgabeprotokoll{% else %}Übergabeprotokoll{% endif %}</div>
-    </div>
-
   </div>
 
   <div class="mt-1 proto-topline">
     <div class="proto-left">
       <div class="proto-label">Protokoll:</div>
       <div class="proto-value">{{ handover.protocol_number }}{% if is_return %}-RETURN{% endif %}</div>
-    </div>
-    <div class="proto-right">
-      <div class="proto-label">Datum:</div>
-      <div class="proto-value">{{ handover.handover_date.strftime('%d.%m.%Y') }}</div>
     </div>
   </div>
 
