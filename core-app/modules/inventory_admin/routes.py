@@ -224,8 +224,7 @@ def return_handover(handover_id):
     form = ReturnForm()
     if request.method == 'GET':
         # If the handover already has a return_date, show it. Otherwise default
-        # the form value to today so the date input shows today's date by defa
-ult.
+        # the form value to today so the date input shows today's date by default.
         if handover.return_date:
             form.return_date.data = handover.return_date
         else:
