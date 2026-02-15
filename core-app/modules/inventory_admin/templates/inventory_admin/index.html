@@ -49,9 +49,17 @@
                             <a href="{{ url_for('inventory_admin.edit_device', id=device.id) }}" class="btn btn-sm btn-outline-secondary" title="Bearbeiten">
                                 <i class="fa-solid fa-edit"></i>
                             </a>
-                            <a href="{{ url_for('inventory_admin.handover_device', id=device.id) }}" class="btn btn-sm btn-outline-primary" title="Übergabe">
-                                <i class="fa-solid fa-handshake"></i>
-                            </a>
+                            {# Disable handover if device is currently handed out (active handover) #}
+                            {% if last and not last.return_date %}
+                                <a class="btn btn-sm btn-outline-primary disabled" aria-disabled="true" title="Übergabe nicht möglich">
+                                    <i class="fa-solid fa-handshake"></i>
+                                </a>
+                                <span class="ms-1" title="Derzeit ausgegeben an {{ last.receiver.first_name }} {{ last.receiver.last_name }} seit {{ last.handover_date.strftime('%d.%m.%Y') }}. Bitte zuerst 'Rückgabe vermerken'."><i class="fa-solid fa-circle-info text-secondary"></i></span>
+                            {% else %}
+                                <a href="{{ url_for('inventory_admin.handover_device', id=device.id) }}" class="btn btn-sm btn-outline-primary" title="Übergabe">
+                                    <i class="fa-solid fa-handshake"></i>
+                                </a>
+                            {% endif %}
                             {% if last %}
                                 <a href="{{ url_for('inventory_admin.protocol', handover_id=last.id) }}" class="btn btn-sm btn-outline-info" title="Übergabeprotokoll">
                                     <i class="fa-solid fa-file-lines"></i>
