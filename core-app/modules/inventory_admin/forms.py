@@ -25,8 +25,11 @@ class HandoverForm(FlaskForm):
     # Giver
     giver_id = HiddenField('Giver ID', validators=[Optional()])
     giver_ldap_username = HiddenField('Giver LDAP Username', validators=[Optional()])
-    giver_first_name = StringField('Vorname (Geber)', validators=[DataRequired()])
-    giver_last_name = StringField('Nachname (Geber)', validators=[DataRequired()])
+    # Giver name fields are optional because the giver can be identified by
+    # LDAP username (prefilled from current_user). Making these optional
+    # prevents form validation from blocking when inputs are rendered hidden.
+    giver_first_name = StringField('Vorname (Geber)', validators=[Optional()])
+    giver_last_name = StringField('Nachname (Geber)', validators=[Optional()])
     giver_department = StringField('Abteilung (Geber)', validators=[Optional()])
 
     handover_date = DateField('Übergabedatum', format='%Y-%m-%d', validators=[DataRequired()])
