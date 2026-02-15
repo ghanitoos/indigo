@@ -236,12 +236,40 @@ def return_handover(handover_id):
         try:
             if rd:
                 handover.return_date = rd
+                # previous receiver becomes the giver (they returned it)
+                try:
+                    prev_receiver = handover.receiver
+                    if prev_receiver:
+                        handover.giver = prev_receiver
+                except Exception:
+                    pass
+                # set current user as the receiver (account owner)
+                try:
+                    user_person = None
+                    if getattr(current_user, 'username', None):
+                        user_person = PersonRef.query.filter_by(ldap_username=current_user.username).first()
+                    if not user_person:
+                        fn = ''
+                        ln = ''
+                        if getattr(current_user, 'display_name', None):
+                            parts = current_user.display_name.split(' ', 1)
+                            fn = parts[0]
+                            ln = parts[1] if len(parts) > 1 else ''
+                        user_person = PersonRef(ldap_username=current_user.username, first_name=fn, last_name=ln)
+                        db.session.add(user_person)
+                        db.session.flush()
+                    handover.receiver = user_person
+                except Exception:
+                    pass
         except Exception:
             pass
         if notes:
             handover.notes = (handover.notes or '') + '\n\nReturn notes: ' + notes
         db.session.commit()
         flash('Rückgabe vermerkt.', 'success')
+        # redirect to the return protocol view
+        if handover.return_date:
+            return redirect(url_for('inventory_admin.protocol_return', handover_id=handover.id))
         return redirect(url_for('inventory_admin.protocol', handover_id=handover.id))
 
     return render_template('inventory_admin/return_handover.html', handover=handover, form=form)
@@ -262,6 +290,31 @@ def return_handover_no_csrf(handover_id):
     try:
         if rd:
             handover.return_date = datetime.strptime(rd, '%Y-%m-%d').date()
+            # previous receiver becomes the giver
+            try:
+                prev_receiver = handover.receiver
+                if prev_receiver:
+                    handover.giver = prev_receiver
+            except Exception:
+                pass
+            # set current_user as receiver
+            try:
+                user_person = None
+                if getattr(current_user, 'username', None):
+                    user_person = PersonRef.query.filter_by(ldap_username=current_user.username).first()
+                if not user_person:
+                    fn = ''
+                    ln = ''
+                    if getattr(current_user, 'display_name', None):
+                        parts = current_user.display_name.split(' ', 1)
+                        fn = parts[0]
+                        ln = parts[1] if len(parts) > 1 else ''
+                    user_person = PersonRef(ldap_username=current_user.username, first_name=fn, last_name=ln)
+                    db.session.add(user_person)
+                    db.session.flush()
+                handover.receiver = user_person
+            except Exception:
+                pass
     except Exception:
         pass
     if notes:
