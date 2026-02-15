@@ -31,10 +31,17 @@
                     <td>{{ device.model_name }}</td>
                     <td>{{ device.serial_number }}</td>
                     <td>
-                        {% if device.is_active %}
-                        <span class="badge bg-success">Aktiv</span>
+                        {% set last = last_handover_map.get(device.id) %}
+                        {% if not device.is_active %}
+                            <span class="badge bg-danger">Ausgemustert</span>
+                        {% elif not last %}
+                            <span class="badge bg-secondary">Verfügbar</span>
+                        {% elif last and not last.return_date %}
+                            <span class="badge bg-warning text-dark">Ausgegeben an {{ last.receiver.first_name }} {{ last.receiver.last_name }}</span>
+                        {% elif last and last.return_date %}
+                            <span class="badge bg-info text-dark">Zurückgegeben am {{ last.return_date.strftime('%d.%m.%Y') }}</span>
                         {% else %}
-                        <span class="badge bg-secondary">Inaktiv</span>
+                            <span class="badge bg-secondary">Unbekannt</span>
                         {% endif %}
                     </td>
                     <td>
@@ -45,6 +52,27 @@
                             <a href="{{ url_for('inventory_admin.handover_device', id=device.id) }}" class="btn btn-sm btn-outline-primary" title="Übergabe">
                                 <i class="fa-solid fa-handshake"></i>
                             </a>
+                            {% if last %}
+                                <a href="{{ url_for('inventory_admin.protocol', handover_id=last.id) }}" class="btn btn-sm btn-outline-info" title="Übergabeprotokoll">
+                                    <i class="fa-solid fa-file-lines"></i>
+                                </a>
+                                {% if last.return_date %}
+                                    <a href="{{ url_for('inventory_admin.protocol_return', handover_id=last.id) }}" class="btn btn-sm btn-outline-secondary" title="Rückgabeprotokoll">
+                                        <i class="fa-solid fa-file-export"></i>
+                                    </a>
+                                {% else %}
+                                    <a href="{{ url_for('inventory_admin.return_handover', handover_id=last.id) }}" class="btn btn-sm btn-outline-warning" title="Rückgabe vermerken">
+                                        <i class="fa-solid fa-rotate-left"></i>
+                                    </a>
+                                {% endif %}
+                            {% endif %}
+
+                            <!-- Delete form -->
+                            <form method="post" action="{{ url_for('inventory_admin.delete_device', id=device.id) }}" style="display:inline; margin:0; padding:0;">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen" onclick="return confirm('Gerät wirklich löschen? Dies entfernt auch die zugehörigen Übergaben.');">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </form>
                         </div>
                     </td>
                 </tr>
