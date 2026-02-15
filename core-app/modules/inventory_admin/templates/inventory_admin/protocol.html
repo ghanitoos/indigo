@@ -28,18 +28,17 @@
     <div class="device-block">
       <div class="device-line"><strong>Gerät:</strong> {{ handover.device.device_type }} — {{ handover.device.model_name }} ({{ handover.device.inventory_number }})</div>
       <div class="device-line"><strong>Seriennummer:</strong> {{ handover.device.serial_number or '-' }}</div>
-      <div class="device-persons" style="margin-top:8px;">
-        <div style="width:48%; float:left;">
-          <div style="font-weight:600;">Übergeber</div>
-          <div>{{ handover.giver.first_name or '' }}</div>
-          <div>{{ handover.giver.last_name or '' }}</div>
-        </div>
-        <div style="width:48%; float:right; text-align:right;">
+      <div class="device-persons-left" style="margin-top:8px; text-align:left;">
+        <div style="margin-bottom:6px;">
           <div style="font-weight:600;">Empfänger</div>
           <div>{{ handover.receiver.first_name or '' }}</div>
           <div>{{ handover.receiver.last_name or '' }}</div>
         </div>
-        <div style="clear:both"></div>
+        <div style="margin-bottom:6px;">
+          <div style="font-weight:600;">Übergeber</div>
+          <div>{{ handover.giver.first_name or '' }}</div>
+          <div>{{ handover.giver.last_name or '' }}</div>
+        </div>
       </div>
     </div>
   </div>
@@ -49,8 +48,6 @@
   <div class="party-row">
     <div class="party-col">
       <div class="party-title">Übergeber</div>
-      {% set giver_name = (handover.giver.first_name or '') ~ ' ' ~ (handover.giver.last_name or '') %}
-      <div class="party-name">{{ giver_name.strip() if giver_name.strip() else handover.giver.ldap_username }}</div>
       <div class="signature-block">
         <div class="signature-line"></div>
         <div class="signature-label">Name/Unterschrift Übergeber</div>
@@ -58,7 +55,6 @@
     </div>
     <div class="party-col">
       <div class="party-title">Empfänger</div>
-      <div class="party-name">{{ handover.receiver.first_name }} {{ handover.receiver.last_name }}</div>
       <div class="signature-block">
         <div class="signature-line"></div>
         <div class="signature-label">Name/Unterschrift Empfänger</div>
