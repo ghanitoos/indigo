@@ -222,6 +222,15 @@ def upload_logo():
 def return_handover(handover_id):
     handover = Handover.query.get_or_404(handover_id)
     form = ReturnForm()
+    if request.method == 'GET':
+        # If the handover already has a return_date, show it. Otherwise default
+        # the form value to today so the date input shows today's date by defa
+ult.
+        if handover.return_date:
+            form.return_date.data = handover.return_date
+        else:
+            form.return_date.data = datetime.today().date()
+
     if form.validate_on_submit():
         rd = form.return_date.data
         notes = form.notes.data or ''
