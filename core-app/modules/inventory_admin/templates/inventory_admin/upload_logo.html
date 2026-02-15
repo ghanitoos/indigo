@@ -4,6 +4,8 @@
 <div class="container mt-4">
   <h1>Logo hochladen</h1>
   <form method="POST" enctype="multipart/form-data">
+    {# Include CSRF token for POST protection #}
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="mb-3">
       <label class="form-label">Logo Datei</label>
       <input type="file" name="logo" class="form-control">
