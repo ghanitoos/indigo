@@ -1,0 +1,14 @@
+{
+  "name": "inventory_admin",
+  "display_name": "Inventarverwaltung",
+  "display_name_de": "Inventarverwaltung",
+  "icon": "fa-boxes-stacked",
+  "url_prefix": "/inventory-admin",
+  "order": 20,
+  "enabled": true,
+  "permissions": [
+    {"name": "inventory_admin.create", "display_name": "Geräte erstellen"},
+    {"name": "inventory_admin.edit", "display_name": "Geräte bearbeiten"},
+    {"name": "inventory_admin.handover", "display_name": "Geräte übergeben"}
+  ]
+}

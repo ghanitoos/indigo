@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Geräteübergabe</h1>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            Gerät: {{ device.model_name }} ({{ device.inventory_number }})
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                
+                <div class="row">
+                    <!-- Receiver Section -->
+                    <div class="col-md-6 border-end">
+                        <h4>Empfänger</h4>
+                        <div class="mb-3 position-relative">
+                            <label class="form-label">LDAP Suche</label>
+                            <input type="text" id="receiver-search" class="form-control" placeholder="Name suchen...">
+                            <div id="receiver-results" class="list-group position-absolute w-100" style="z-index: 1000;"></div>
+                        </div>
+                        
+                        {{ form.receiver_id }}
+                        {{ form.receiver_ldap_username }}
+                        
+                        <div class="mb-3">
+                            {{ form.receiver_first_name.label(class="form-label") }}
+                            {{ form.receiver_first_name(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.receiver_last_name.label(class="form-label") }}
+                            {{ form.receiver_last_name(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.receiver_department.label(class="form-label") }}
+                            {{ form.receiver_department(class="form-control") }}
+                        </div>
+                    </div>
+                    
+                    <!-- Giver Section -->
+                    <div class="col-md-6">
+                        <h4>Übergeber</h4>
+                        <div class="mb-3 position-relative">
+                            <label class="form-label">LDAP Suche</label>
+                            <input type="text" id="giver-search" class="form-control" placeholder="Name suchen...">
+                            <div id="giver-results" class="list-group position-absolute w-100" style="z-index: 1000;"></div>
+                        </div>
+                        
+                        {{ form.giver_id }}
+                        {{ form.giver_ldap_username }}
+                        
+                        <div class="mb-3">
+                            {{ form.giver_first_name.label(class="form-label") }}
+                            {{ form.giver_first_name(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.giver_last_name.label(class="form-label") }}
+                            {{ form.giver_last_name(class="form-control") }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.giver_department.label(class="form-label") }}
+                            {{ form.giver_department(class="form-control") }}
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="mb-3">
+                    {{ form.handover_date.label(class="form-label") }}
+                    {{ form.handover_date(class="form-control", type="date") }}
+                </div>
+                
+                <div class="mb-3">
+                    {{ form.notes.label(class="form-label") }}
+                    {{ form.notes(class="form-control", rows="3") }}
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Übergabe protokollieren</button>
+                <a href="{{ url_for('inventory_admin.index') }}" class="btn btn-secondary">Abbrechen</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    setupSearch('receiver');
+    setupSearch('giver');
+});
+
+function setupSearch(type) {
+    const input = document.getElementById(type + '-search');
+    const results = document.getElementById(type + '-results');
+    
+    let timeout = null;
+    
+    input.addEventListener('input', function() {
+        clearTimeout(timeout);
+        const query = this.value;
+        
+        if (query.length < 2) {
+            results.innerHTML = '';
+            return;
+        }
+        
+        timeout = setTimeout(() => {
+            fetch(`{{ url_for('inventory_admin.search_users') }}?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    results.innerHTML = '';
+                    data.forEach(user => {
+                        const item = document.createElement('a');
+                        item.href = '#';
+                        item.className = 'list-group-item list-group-item-action';
+                        item.innerHTML = `<strong>${user.display_name}</strong> <small class="text-muted">(${user.department})</small>`;
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            fillUser(type, user);
+                            results.innerHTML = '';
+                            input.value = '';
+                        });
+                        results.appendChild(item);
+                    });
+                });
+        }, 300);
+    });
+    
+    // Hide results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (e.target !== input && e.target !== results) {
+            results.innerHTML = '';
+        }
+    });
+}
+
+function fillUser(type, user) {
+    document.getElementById(type + '_ldap_username').value = user.ldap_username;
+    document.getElementById(type + '_first_name').value = user.first_name;
+    document.getElementById(type + '_last_name').value = user.last_name;
+    document.getElementById(type + '_department').value = user.department;
+    // Reset ID since this is a new selection from LDAP, might be a new PersonRef
+    document.getElementById(type + '_id').value = ''; 
+}
+</script>
+{% endblock %}

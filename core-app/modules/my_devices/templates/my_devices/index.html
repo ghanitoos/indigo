@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Meine Geräte</h1>
+    </div>
+
+    {% if handovers %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Gerät</th>
+                    <th>Modell</th>
+                    <th>Seriennummer</th>
+                    <th>Inventarnummer</th>
+                    <th>Erhalten am</th>
+                    <th>Protokoll</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for handover in handovers %}
+                <tr>
+                    <td>{{ handover.device.device_type }}</td>
+                    <td>{{ handover.device.model_name }}</td>
+                    <td>{{ handover.device.serial_number or '-' }}</td>
+                    <td>{{ handover.device.inventory_number }}</td>
+                    <td>{{ handover.handover_date.strftime('%d.%m.%Y') }}</td>
+                    <td>
+                        <span class="badge bg-info">{{ handover.protocol_number }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <h4 class="alert-heading">Keine Geräte gefunden!</h4>
+        <p>Es sind aktuell keine Geräte auf Ihren Benutzernamen registriert.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -50,6 +50,9 @@ def inject_sidebar_menu():
                             url = mod.url_prefix or '#'
                     else:
                         url = mod.url_prefix if mod.url_prefix else '#'
+                        # Normalize to have trailing slash for menu links (except '#').
+                        if url not in ('#', '') and not url.endswith('/'):
+                            url = url + '/'
                         
                     menu.append({
                         'name': mod.display_name,

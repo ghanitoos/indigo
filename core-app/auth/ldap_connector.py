@@ -26,7 +26,7 @@ class LDAPConnector:
         self.is_dev = (env == 'development')
 
         # Initialize connection as None
-        self.connection = None
+        self.connectionection = None
         self._init_connection()
 
     def _init_connection(self):
@@ -41,7 +41,7 @@ class LDAPConnector:
             
             # Initialize Connection (Bind later)
             # Default to NTLM if needed, or allow auto-negotiation
-            self.connection = Connection(
+            self.connectionection = Connection(
                 self.server, 
                 user=self.bind_dn, 
                 password=self.bind_password,
@@ -53,18 +53,18 @@ class LDAPConnector:
 
     def _bind_service_user(self):
         """Helper to bind with service account."""
-        if not self.connection:
+        if not self.connectionection:
             return False
             
         try:
             # Try simple bind first (often works if DN is correct)
-            self.connection.authentication = SIMPLE
-            if self.connection.bind():
+            self.connectionection.authentication = SIMPLE
+            if self.connectionection.bind():
                 return True
                 
             # If simple fails, try NTLM
-            self.connection.authentication = NTLM
-            if self.connection.bind():
+            self.connectionection.authentication = NTLM
+            if self.connectionection.bind():
                 return True
                 
             logger.error("Failed to bind service user with both SIMPLE and NTLM.")
@@ -98,17 +98,17 @@ class LDAPConnector:
             search_base = f"{self.user_search_base},{self.base_dn}" if self.user_search_base else self.base_dn
             search_filter = f'(&(objectClass=user)(sAMAccountName={username}))'
             
-            self.connection.search(
+            self.connectionection.search(
                 search_base=search_base,
                 search_filter=search_filter,
                 attributes=['distinguishedName']
             )
 
-            if not self.connection.entries:
+            if not self.connectionection.entries:
                 logger.warning(f"User {username} not found in LDAP.")
                 return False
 
-            user_dn = self.connection.entries[0].distinguishedName.value
+            user_dn = self.connectionection.entries[0].distinguishedName.value
 
             # 4. Attempt Bind as User
             # Try Simple Bind with DN
@@ -158,16 +158,16 @@ class LDAPConnector:
             search_filter = f'(&(objectClass=user)(sAMAccountName={username}))'
             attributes = ['displayName', 'mail', 'sAMAccountName', 'memberOf']
 
-            self.connection.search(
+            self.connectionection.search(
                 search_base=search_base,
                 search_filter=search_filter,
                 attributes=attributes
             )
 
-            if not self.connection.entries:
+            if not self.connectionection.entries:
                 return None
 
-            entry = self.connection.entries[0]
+            entry = self.connectionection.entries[0]
             
             return {
                 'username': str(entry.sAMAccountName),
@@ -204,14 +204,14 @@ class LDAPConnector:
             search_filter = '(objectClass=group)'
             attributes = ['cn', 'distinguishedName', 'member']
 
-            self.connection.search(
+            self.connectionection.search(
                 search_base=search_base,
                 search_filter=search_filter,
                 attributes=attributes
             )
 
             groups = []
-            for entry in self.connection.entries:
+            for entry in self.connectionection.entries:
                 members = entry.member.values if hasattr(entry, 'member') and entry.member else []
                 cn = str(entry.cn) if hasattr(entry, 'cn') and entry.cn else "Unknown"
                 dn = str(entry.distinguishedName) if hasattr(entry, 'distinguishedName') and entry.distinguishedName else ""
@@ -241,3 +241,52 @@ class LDAPConnector:
                     groups.append(part[3:])
                     break
         return groups
+
+    def search_users(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Search for users in LDAP.
+        
+        Args:
+            query: The search string (username, name, or surname)
+            
+        Returns:
+            List of user dictionaries
+        """
+        if self.is_dev:
+             # Return dummy data in dev mode
+             return [
+                 {'ldap_username': 'jdoe', 'first_name': 'John', 'last_name': 'Doe', 'department': 'IT', 'display_name': 'John Doe'},
+                 {'ldap_username': 'asmith', 'first_name': 'Alice', 'last_name': 'Smith', 'department': 'HR', 'display_name': 'Alice Smith'}
+             ]
+
+        if not self._bind_service_user():
+            return []
+            
+        # Proper LDAP filter escaping should be considered, but for now basic string formatting
+        # Also, sAMAccountName match
+        search_filter = f'(&(objectClass=user)(|(sAMAccountName=*{query}*)(givenName=*{query}*)(sn=*{query}*)(displayName=*{query}*)))'
+        
+        try:
+            self.connection.search(
+                search_base=self.user_search_base,
+                search_filter=search_filter,
+                attributes=['sAMAccountName', 'givenName', 'sn', 'department', 'displayName']
+            )
+            
+            users = []
+            for entry in self.connection.entries:
+                users.append({
+                    'ldap_username': str(entry.sAMAccountName) if entry.sAMAccountName else '',
+                    'first_name': str(entry.givenName) if entry.givenName else '',
+                    'last_name': str(entry.sn) if entry.sn else '',
+                    'department': str(entry.department) if entry.department else '',
+                    'display_name': str(entry.displayName) if entry.displayName else ''
+                })
+            
+            # Sort by Display Name
+            users.sort(key=lambda x: x['display_name'])
+            return users
+            
+        except Exception as e:
+            logger.error(f"Error searching users: {e}")
+            return []

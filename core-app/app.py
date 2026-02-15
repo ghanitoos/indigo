@@ -1,5 +1,6 @@
 import os
 from flask import Flask, jsonify, redirect, url_for, Blueprint, render_template
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import login_required, current_user
 from config import get_config
 from extensions import db, migrate, login_manager, csrf
@@ -10,9 +11,11 @@ from modules.admin import admin_bp
 # Import models to ensure they are registered with SQLAlchemy
 from models.user import User
 from models.rbac import Role, Module, Permission
+from models.inventory import Device, PersonRef, Handover, InventorySettings
 
 def create_app(config_name=None):
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     
     # Load config
     config = get_config(config_name)
@@ -37,6 +40,10 @@ def create_app(config_name=None):
     app.register_blueprint(admin_bp)
 
     from modules.profile import profile_bp
+    from modules.inventory_admin import inventory_admin_bp
+    from modules.my_devices import my_devices_bp
+    app.register_blueprint(my_devices_bp)
+    app.register_blueprint(inventory_admin_bp)
     app.register_blueprint(profile_bp, url_prefix='/profile')
     
     # Main Blueprint (Placeholder for Dashboard)

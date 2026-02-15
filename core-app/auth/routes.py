@@ -17,7 +17,7 @@ auth_bp = Blueprint('auth', __name__)
 def login():
     """
     Handle user login.
-    
+
     GET: Render login form
     POST: Process login credentials
     """
@@ -27,7 +27,7 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        
+
         if not username or not password:
             flash(get_text('messages.error_save'), 'danger')
             return render_template('auth/login.html')
@@ -38,44 +38,44 @@ def login():
             # Auth success
             user_info = ldap.get_user_info(username)
             user = User.query.filter_by(username=username).first()
-            
+
             if not user:
                 user = User(username=username)
                 db.session.add(user)
-            
+
             # Update user details from LDAP
             if user_info:
                 user.display_name = user_info.get('display_name')
                 user.email = user_info.get('email')
-                
-                # Sync Roles based on Groups
+
+                # Sync Roles based on LDAP Groups
+                # Map any LDAP group that has a corresponding local Role record
+                # to the user so group-based permissions (managed in admin UI)
+                # are applied automatically on login.
                 groups = user_info.get('groups', [])
-                admin_role = Role.query.filter_by(name='admin').first()
-                
-                if admin_role:
-                    if 'Domain Admins' in groups:
-                        if admin_role not in user.roles:
-                            user.roles.append(admin_role)
-                            # flash('Admin access granted.', 'info')
-                    # Optional: Remove admin role if removed from group?
-                    # else:
-                    #     if admin_role in user.roles:
-                    #         user.roles.remove(admin_role)
-            
+
+                if groups:
+                    # Find matching local roles by exact name (Role.name == group CN)
+                    group_roles = Role.query.filter(Role.name.in_(groups)).all()
+                    for gr in group_roles:
+                        if gr not in user.roles:
+                            user.roles.append(gr)
+
             user.last_login = datetime.utcnow()
             user.is_active = True
             db.session.commit()
-            
+
             login_user(user)
             flash(get_text('auth.login_success'), 'success')
-            
+
             next_page = request.args.get('next')
             # Validate next_page to prevent open redirects if necessary
             return redirect(next_page or url_for('main.index'))
         else:
             flash(get_text('auth.login_failed'), 'danger')
-    
+
     return render_template('auth/login.html')
+
 
 @auth_bp.route('/logout')
 @login_required

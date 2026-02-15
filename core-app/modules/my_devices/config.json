@@ -1,0 +1,9 @@
+{
+  "name": "my_devices",
+  "display_name": "Meine Geräte",
+  "display_name_de": "Meine Geräte",
+  "icon": "fa-laptop",
+  "url_prefix": "/my-devices",
+  "order": 25,
+  "enabled": true
+}

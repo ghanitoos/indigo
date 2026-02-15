@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Inventarverwaltung</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('inventory_admin.add_device') }}" class="btn btn-sm btn-primary">
+                <i class="fa-solid fa-plus"></i> Neues Gerät
+            </a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Inventarnummer</th>
+                    <th>Gerätetyp</th>
+                    <th>Modell</th>
+                    <th>Seriennummer</th>
+                    <th>Status</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for device in devices %}
+                <tr>
+                    <td>{{ device.inventory_number }}</td>
+                    <td>{{ device.device_type }}</td>
+                    <td>{{ device.model_name }}</td>
+                    <td>{{ device.serial_number }}</td>
+                    <td>
+                        {% if device.is_active %}
+                        <span class="badge bg-success">Aktiv</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inaktiv</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="{{ url_for('inventory_admin.edit_device', id=device.id) }}" class="btn btn-sm btn-outline-secondary" title="Bearbeiten">
+                                <i class="fa-solid fa-edit"></i>
+                            </a>
+                            <a href="{{ url_for('inventory_admin.handover_device', id=device.id) }}" class="btn btn-sm btn-outline-primary" title="Übergabe">
+                                <i class="fa-solid fa-handshake"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
