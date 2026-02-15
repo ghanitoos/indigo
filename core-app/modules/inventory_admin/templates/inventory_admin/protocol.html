@@ -3,30 +3,27 @@
 {% block content %}
 <div class="container mt-4 protocol-document">
   <div class="protocol-header">
-    <div class="flex-shrink-0">
+    <div style="flex:1;">
+      <div class="protocol-title">{% if is_return %}Rückgabeprotokoll{% else %}Übergabeprotokoll{% endif %}</div>
+    </div>
+    <div style="text-align:right; margin-left:12px;">
+      <div><strong>Protokoll:</strong></div>
+      <div class="proto-number" style="font-weight:600; margin-bottom:6px">{{ handover.protocol_number }}{% if is_return %}-RETURN{% endif %}</div>
+      <div><strong>Datum:</strong> {{ handover.handover_date.strftime('%d.%m.%Y') }}</div>
+    </div>
+    <div class="flex-shrink-0 logo-container">
       {% if logo_url %}
         <img src="{{ logo_url }}" alt="Logo" class="logo">
       {% else %}
-        <div style="width:120px; height:80px; border:1px solid #e1e1e1; display:flex; align-items:center; justify-content:center;">Logo</div>
+        <div class="logo-placeholder">Logo</div>
       {% endif %}
-    </div>
-    <div style="flex:1; text-align:center;">
-      <div style="font-weight:700; font-size:1.1rem;">{{ config.APP_NAME }}</div>
-        <div class="protocol-title">{% if is_return %}Rückgabeprotokoll{% else %}Übergabeprotokoll{% endif %}</div>
-      <div style="font-size:0.95rem; color:#555">{{ config.APP_ADDRESS or '' }}</div>
-    </div>
-    <div style="flex-basis:160px; text-align:right;">
-      <div><strong>Protokoll:</strong></div>
-      <div style="font-weight:600; margin-bottom:6px">{{ handover.protocol_number }}{% if is_return %}-RETURN{% endif %}</div>
-      <div><strong>Datum:</strong></div>
-      <div>{{ handover.handover_date.strftime('%d.%m.%Y') }}</div>
     </div>
   </div>
 
   <div class="protocol-meta mt-3">
     <table class="protocol-table">
       <tr>
-        <td style="width:50%; vertical-align:top;"><strong>Gerät:</strong> {{ handover.device.model_name }} ({{ handover.device.inventory_number }})</td>
+        <td style="width:50%; vertical-align:top;"><strong>Gerät:</strong> {{ handover.device.device_type }} — {{ handover.device.model_name }} ({{ handover.device.inventory_number }})</td>
         <td style="vertical-align:top;"><strong>Seriennummer:</strong> {{ handover.device.serial_number or '-' }}</td>
       </tr>
     </table>
@@ -37,8 +34,8 @@
   <div class="row">
     <div class="col-6">
       <h5>Übergeber</h5>
-      <div>{{ handover.giver.first_name }} {{ handover.giver.last_name }}</div>
-      <div class="text-muted">{{ handover.giver.ldap_username }}</div>
+      {% set giver_name = (handover.giver.first_name or '') ~ ' ' ~ (handover.giver.last_name or '') %}
+      <div>{{ giver_name.strip() if giver_name.strip() else handover.giver.ldap_username }}</div>
       <div class="signature-block">
         <div class="signature-line"></div>
         <div class="signature-label">Name/Unterschrift Übergeber</div>
@@ -58,7 +55,6 @@
   <hr>
 
   <div>
-    <p><strong>Rückgabedatum:</strong> {{ handover.return_date.strftime('%d.%m.%Y') if handover.return_date else '-' }}</p>
     {% if is_return and handover.return_date %}
       <p><strong>Datum der Rücknahme:</strong> {{ handover.return_date.strftime('%d.%m.%Y') }}</p>
     {% endif %}
