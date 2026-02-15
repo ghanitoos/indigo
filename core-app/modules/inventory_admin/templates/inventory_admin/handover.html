@@ -51,9 +51,10 @@
                             </div>
                             {{ form.giver_id }}
                             {{ form.giver_ldap_username(value=current_user.username) }}
-                            {{ form.giver_first_name(value=(current_user.display_name.split(' ',1)[0] if current_user.display_name else '')) }}
-                            {{ form.giver_last_name(value=(current_user.display_name.split(' ',1)[1] if current_user.display_name and ' ' in current_user.display_name else '')) }}
-                            {{ form.giver_department }}
+                            {# Keep giver personal fields but render them as hidden inputs so they are submitted with the form without showing extra textboxes #}
+                            {{ form.giver_first_name(type='hidden', value=(current_user.display_name.split(' ',1)[0] if current_user.display_name else '')) }}
+                            {{ form.giver_last_name(type='hidden', value=(current_user.display_name.split(' ',1)[1] if current_user.display_name and ' ' in current_user.display_name else '')) }}
+                            {{ form.giver_department(type='hidden') }}
                         </div>
                 </div>
                 
