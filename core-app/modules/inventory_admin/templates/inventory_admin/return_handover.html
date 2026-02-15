@@ -12,13 +12,40 @@
 
   <form method="POST" action="{{ url_for('inventory_admin.return_handover_no_csrf', handover_id=handover.id) }}">
       {{ form.hidden_tag() }}
-    <div class="mb-3">
-      {{ form.return_date.label(class="form-label") }}
-      {% if handover.return_date %}
-        {{ form.return_date(class="form-control", value=handover.return_date.strftime('%Y-%m-%d')) }}
-      {% else %}
-        {{ form.return_date(class="form-control") }}
-      {% endif %}
+    <div class="row">
+      <div class="col-md-6">
+        <h4>Empfänger (optional)</h4>
+        <div class="mb-3 position-relative">
+          <label class="form-label">LDAP Suche</label>
+          <input type="text" id="receiver-search" class="form-control" placeholder="Name suchen...">
+          <div id="receiver-results" class="list-group position-absolute w-100" style="z-index:1000;"></div>
+        </div>
+        <input type="hidden" id="receiver_id" name="receiver_id">
+        <input type="hidden" id="receiver_ldap_username" name="receiver_ldap_username">
+        <div class="mb-3">
+          <label class="form-label">Vorname (Empfänger)</label>
+          <input id="receiver_first_name" name="receiver_first_name" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Nachname (Empfänger)</label>
+          <input id="receiver_last_name" name="receiver_last_name" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Abteilung (Empfänger)</label>
+          <input id="receiver_department" name="receiver_department" class="form-control">
+        </div>
+      </div>
+      <div class="col-md-6">
+        <h4>Rückgabe Datum</h4>
+        <div class="mb-3">
+          {{ form.return_date.label(class="form-label") }}
+          {% if handover.return_date %}
+            {{ form.return_date(class="form-control", value=handover.return_date.strftime('%Y-%m-%d')) }}
+          {% else %}
+            {{ form.return_date(class="form-control") }}
+          {% endif %}
+        </div>
+      </div>
     </div>
     <div class="mb-3">
       {{ form.notes.label(class="form-label") }}
@@ -29,3 +56,44 @@
   </form>
 </div>
 {% endblock %}
+
+  {% block extra_js %}
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    setupSearch('receiver');
+  });
+
+  function setupSearch(type) {
+    const input = document.getElementById(type + '-search');
+    const results = document.getElementById(type + '-results');
+    let timeout = null;
+    input.addEventListener('input', function() {
+      clearTimeout(timeout);
+      const query = this.value;
+      if (query.length < 2) { results.innerHTML = ''; return; }
+      timeout = setTimeout(() => {
+        fetch(`{{ url_for('inventory_admin.search_users') }}?q=${encodeURIComponent(query)}`)
+        .then(r => r.json()).then(data => {
+          results.innerHTML = '';
+          data.forEach(user => {
+            const item = document.createElement('a');
+            item.href = '#'; item.className = 'list-group-item list-group-item-action';
+            item.innerHTML = `<strong>${user.display_name}</strong> <small class="text-muted">(${user.department})</small>`;
+            item.addEventListener('click', function(e){ e.preventDefault(); fillUser(type, user); results.innerHTML=''; input.value=''; });
+            results.appendChild(item);
+          });
+        });
+      }, 250);
+    });
+  }
+
+  function fillUser(type, user) {
+    document.getElementById(type + '_ldap_username').value = user.ldap_username || '';
+    document.getElementById(type + '_first_name').value = user.first_name || '';
+    document.getElementById(type + '_last_name').value = user.last_name || '';
+    document.getElementById(type + '_department').value = user.department || '';
+    // clear receiver_id since LDAP selection may not map to local PersonRef id
+    const idElem = document.getElementById(type + '_id'); if (idElem) idElem.value = '';
+  }
+  </script>
+  {% endblock %}

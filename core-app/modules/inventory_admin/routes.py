@@ -243,22 +243,46 @@ def return_handover(handover_id):
                         handover.giver = prev_receiver
                 except Exception:
                     pass
-                # set current user as the receiver (account owner)
+                # prefer a submitted receiver (from LDAP search) if provided
                 try:
-                    user_person = None
-                    if getattr(current_user, 'username', None):
-                        user_person = PersonRef.query.filter_by(ldap_username=current_user.username).first()
-                    if not user_person:
-                        fn = ''
-                        ln = ''
-                        if getattr(current_user, 'display_name', None):
-                            parts = current_user.display_name.split(' ', 1)
-                            fn = parts[0]
-                            ln = parts[1] if len(parts) > 1 else ''
-                        user_person = PersonRef(ldap_username=current_user.username, first_name=fn, last_name=ln)
-                        db.session.add(user_person)
-                        db.session.flush()
-                    handover.receiver = user_person
+                    submitted_rid = request.form.get('receiver_id') or request.form.get('receiver_ldap_username')
+                    if submitted_rid:
+                        # try by id first
+                        rp = None
+                        if request.form.get('receiver_id'):
+                            try:
+                                rp = PersonRef.query.get(int(request.form.get('receiver_id')))
+                            except Exception:
+                                rp = None
+                        if not rp and request.form.get('receiver_ldap_username'):
+                            rp = PersonRef.query.filter_by(ldap_username=request.form.get('receiver_ldap_username')).first()
+                        if not rp:
+                            # create personref from submitted fields
+                            rp = PersonRef(
+                                ldap_username=request.form.get('receiver_ldap_username') or '',
+                                first_name=request.form.get('receiver_first_name') or '',
+                                last_name=request.form.get('receiver_last_name') or '',
+                                department=request.form.get('receiver_department') or ''
+                            )
+                            db.session.add(rp)
+                            db.session.flush()
+                        handover.receiver = rp
+                    else:
+                        # fallback to current_user
+                        user_person = None
+                        if getattr(current_user, 'username', None):
+                            user_person = PersonRef.query.filter_by(ldap_username=current_user.username).first()
+                        if not user_person:
+                            fn = ''
+                            ln = ''
+                            if getattr(current_user, 'display_name', None):
+                                parts = current_user.display_name.split(' ', 1)
+                                fn = parts[0]
+                                ln = parts[1] if len(parts) > 1 else ''
+                            user_person = PersonRef(ldap_username=current_user.username, first_name=fn, last_name=ln)
+                            db.session.add(user_person)
+                            db.session.flush()
+                        handover.receiver = user_person
                 except Exception:
                     pass
         except Exception:
