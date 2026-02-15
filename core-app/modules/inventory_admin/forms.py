@@ -1,6 +1,8 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, BooleanField, DateField, HiddenField
 from wtforms.validators import DataRequired, Optional
+from datetime import date
+
 
 class DeviceForm(FlaskForm):
     inventory_number = StringField('Inventarnummer', validators=[Optional()])
@@ -10,6 +12,7 @@ class DeviceForm(FlaskForm):
     scope = StringField('Verwendungszweck', validators=[Optional()])
     notes = TextAreaField('Notizen', validators=[Optional()])
     is_active = BooleanField('Aktiv', default=True)
+
 
 class HandoverForm(FlaskForm):
     # Receiver
@@ -27,4 +30,11 @@ class HandoverForm(FlaskForm):
     giver_department = StringField('Abteilung (Geber)', validators=[Optional()])
 
     handover_date = DateField('Übergabedatum', format='%Y-%m-%d', validators=[DataRequired()])
+    notes = TextAreaField('Notizen', validators=[Optional()])
+
+
+class ReturnForm(FlaskForm):
+    # Default return date should be today when the form is displayed empty.
+    # Keep validators Optional so a return can be recorded without a date in some flows.
+    return_date = DateField('Rückgabedatum', format='%Y-%m-%d', validators=[Optional()], default=date.today)
     notes = TextAreaField('Notizen', validators=[Optional()])
