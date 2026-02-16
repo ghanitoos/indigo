@@ -125,6 +125,23 @@ def handover_device(id):
                     department=form.receiver_department.data
                 )
                 db.session.add(receiver)
+        else:
+            # If receiver exists but department is missing, attempt to auto-fill
+            # from LDAP groups that start with 'GG' (excluding Domain Admins members).
+            try:
+                if not receiver.department and getattr(receiver, 'ldap_username', None):
+                    ldap = LDAPConnector()
+                    groups = ldap.get_user_groups(receiver.ldap_username)
+                    selected = None
+                    if groups and 'Domain Admins' not in groups:
+                        for g in groups:
+                            if g and g.startswith('GG'):
+                                selected = g
+                                break
+                    if selected:
+                        receiver.department = selected
+            except Exception:
+                pass
 
         # Handle Giver
         giver = None
