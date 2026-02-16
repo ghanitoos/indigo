@@ -48,6 +48,9 @@
                             <div class="card p-3">
                                 <p class="mb-1"><strong>{{ current_user.display_name or current_user.username }}</strong></p>
                                 <p class="text-muted mb-0">Benutzer: {{ current_user.username }}</p>
+                                {% if form.giver_department.data %}
+                                <p class="text-muted mb-0">Abteilung: {{ form.giver_department.data }}</p>
+                                {% endif %}
                             </div>
                             {{ form.giver_id }}
                             {{ form.giver_ldap_username(value=current_user.username) }}

@@ -106,10 +106,10 @@ def handover_device(id):
                     form.giver_department.data = selected
             except Exception:
                 pass
-            # If active LDAP group is in session, prefer that (overrides nothing, only fills if empty)
+            # If active LDAP group is in session, set it as giver department (always override)
             try:
                 active = session.get('active_ldap_group')
-                if active and not form.giver_department.data:
+                if active:
                     form.giver_department.data = active
             except Exception:
                 pass
@@ -171,6 +171,15 @@ def handover_device(id):
                     department=form.giver_department.data
                 )
                 db.session.add(giver)
+
+        else:
+            # If giver exists, ensure department follows active LDAP group if set
+            try:
+                active = session.get('active_ldap_group')
+                if active:
+                    giver.department = active
+            except Exception:
+                pass
 
         db.session.flush()
 
