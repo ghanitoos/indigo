@@ -94,7 +94,7 @@
                                     </a>
                                 {% else %}
                                     {# Quick return: show preview modal and confirm to post return_no_csrf #}
-                                    <button class="btn btn-sm btn-outline-warning quick-return-btn" data-handover-id="{{ last.id }}" title="Rückgabe vermerken">
+                                    <button class="btn btn-sm btn-outline-warning quick-return-btn" data-handover-id="{{ last.id }}" title="Rückgabe vermerken" onclick="openReturnPreview({{ last.id }});">
                                         <i class="fa-solid fa-rotate-left"></i>
                                     </button>
                                 {% endif %}
@@ -173,41 +173,27 @@
             });
         });
         // Quick return modal flow
-        function showReturnPreview(handoverId) {
+        // expose globally so inline onclick works
+        window.openReturnPreview = function(handoverId){
             const modal = document.getElementById('returnPreviewModal');
             const body = modal.querySelector('.modal-body');
             body.innerHTML = '<p>Lade Vorschau…</p>';
-            // fetch protocol HTML and show inside modal
             fetch(`{{ url_for('inventory_admin.protocol', handover_id=0) }}`.replace('/0/', `/${handoverId}/`))
-                .then(r => r.text())
-                .then(html => { body.innerHTML = html; })
-                .catch(() => { body.innerHTML = '<p class="text-danger">Vorschau konnte nicht geladen werden.</p>'; });
-            // show modal
+                .then(r => r.text()).then(html => { body.innerHTML = html; }).catch(() => { body.innerHTML = '<p class="text-danger">Vorschau konnte nicht geladen werden.</p>'; });
             modal.style.display = 'block';
-        }
+            const confirmBtn = document.getElementById('confirmReturnBtn');
+            confirmBtn.onclick = function(){
+                fetch(`{{ url_for('inventory_admin.return_handover_no_csrf', handover_id=0) }}`.replace('/0', `/${handoverId}`), {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+                    body: `return_date=${encodeURIComponent(new Date().toISOString().slice(0,10))}`
+                }).then(r=>{ if (r.redirected) { window.location = r.url; } else { window.location.reload(); } }).catch(()=>{ alert('Fehler beim Senden der Rückgabe'); });
+            };
+        };
 
-        function hideReturnPreview() {
-            const modal = document.getElementById('returnPreviewModal');
-            modal.style.display = 'none';
-        }
+        function hideReturnPreview() { document.getElementById('returnPreviewModal').style.display = 'none'; }
 
-        document.querySelectorAll('.quick-return-btn').forEach(function(btn){
-            btn.addEventListener('click', function(e){
-                e.preventDefault();
-                const hid = this.getAttribute('data-handover-id');
-                showReturnPreview(hid);
-                // attach confirm handler
-                const confirmBtn = document.getElementById('confirmReturnBtn');
-                confirmBtn.onclick = function(){
-                    // post to no-csrf endpoint
-                    fetch(`{{ url_for('inventory_admin.return_handover_no_csrf', handover_id=0) }}`.replace('/0', `/${hid}`), {
-                        method: 'POST',
-                        headers: {'Content-Type':'application/x-www-form-urlencoded'},
-                        body: `return_date=${encodeURIComponent(new Date().toISOString().slice(0,10))}`
-                    }).then(r=>{ if (r.redirected) { window.location = r.url; } else { window.location.reload(); } }).catch(()=>{ alert('Fehler beim Senden der Rückgabe'); });
-                };
-            });
-        });
+        document.querySelectorAll('.return-modal-close').forEach(function(el){ el.addEventListener('click', hideReturnPreview); });
 
         // modal close
         document.querySelectorAll('.return-modal-close').forEach(function(el){ el.addEventListener('click', hideReturnPreview); });
