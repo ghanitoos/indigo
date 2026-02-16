@@ -25,6 +25,7 @@
                     <th>Gerätetyp</th>
                     <th>Modell</th>
                     <th>Seriennummer</th>
+                    <th>LDAP</th>
                     <th>Status</th>
                     <th>Aktionen</th>
                 </tr>
@@ -36,6 +37,14 @@
                     <td>{{ device.device_type }}</td>
                     <td>{{ device.model_name }}</td>
                     <td>{{ device.serial_number }}</td>
+                    <td>
+                        {# Show LDAP username of the last receiver if available #}
+                        {% if last_handover_map.get(device.id) and last_handover_map.get(device.id).receiver and last_handover_map.get(device.id).receiver.ldap_username %}
+                            <code>{{ last_handover_map.get(device.id).receiver.ldap_username }}</code>
+                        {% else %}
+                            &mdash;
+                        {% endif %}
+                    </td>
                     <td>
                         {% set last = last_handover_map.get(device.id) %}
                         {% if not device.is_active %}
