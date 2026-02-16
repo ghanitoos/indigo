@@ -49,9 +49,19 @@ def my_devices():
             except Exception:
                 pass
 
-    # historical devices: handovers where receiver ldap_username == username and return_date is set
-    historical_handovers = Handover.query.join(PersonRef, Handover.receiver).filter(PersonRef.ldap_username == username, Handover.return_date.isnot(None)).order_by(Handover.return_date.desc()).all()
-    # unique devices from historical handovers
+    # historical devices: include handovers where the user was receiver (they had it) OR
+    # where the user is recorded as giver (they returned it) and return_date is set
+    from sqlalchemy import or_
+    # join receiver and giver references
+    recv = PersonRef
+    giv = PersonRef
+    historical_handovers = Handover.query.outerjoin(Handover.receiver).outerjoin(Handover.giver).filter(
+        Handover.return_date.isnot(None)).filter(
+            or_(
+                Handover.receiver.has(PersonRef.ldap_username == username),
+                Handover.giver.has(PersonRef.ldap_username == username)
+            )).order_by(Handover.return_date.desc()).all()
+    # unique devices from historical handovers (keep latest return per device)
     historical_devices = []
     seen = set()
     for h in historical_handovers:
