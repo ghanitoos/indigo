@@ -21,12 +21,12 @@
         <table class="table table-striped table-hover">
             <thead>
                 <tr>
-                    <th>Inventarnummer</th>
-                    <th>Gerätetyp</th>
-                    <th>Modell</th>
-                    <th>Seriennummer</th>
-                    <th>LDAP</th>
-                    <th>Status</th>
+                    <th class="sortable">Inventarnummer</th>
+                    <th class="sortable">Gerätetyp</th>
+                    <th class="sortable">Modell</th>
+                    <th class="sortable">Seriennummer</th>
+                    <th class="sortable">LDAP</th>
+                    <th class="sortable">Status</th>
                     <th>Aktionen</th>
                 </tr>
             </thead>
@@ -106,3 +106,46 @@
     </div>
 </div>
 {% endblock %}
+
+    {% block extra_js %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Simple client-side table sorter for small datasets
+        function getCellValue(tr, idx){
+            const cell = tr.children[idx];
+            return cell ? cell.innerText.trim() : '';
+        }
+
+        function comparer(idx, asc) {
+            return function(a, b) {
+                const v1 = getCellValue(a, idx);
+                const v2 = getCellValue(b, idx);
+                // attempt numeric compare
+                const n1 = parseFloat(v1.replace(/[^0-9\-.,]/g, '').replace(',', '.'));
+                const n2 = parseFloat(v2.replace(/[^0-9\-.,]/g, '').replace(',', '.'));
+                if (!isNaN(n1) && !isNaN(n2)) {
+                    return (n1 - n2) * (asc ? 1 : -1);
+                }
+                return v1.localeCompare(v2, undefined, {sensitivity: 'base'}) * (asc ? 1 : -1);
+            };
+        }
+
+        document.querySelectorAll('th.sortable').forEach(function(th, colIdx) {
+            th.style.cursor = 'pointer';
+            th.addEventListener('click', function() {
+                const table = th.closest('table');
+                const tbody = table.querySelector('tbody');
+                const currentIsAsc = th.classList.contains('asc');
+                // clear other headings
+                table.querySelectorAll('th.sortable').forEach(h=>{h.classList.remove('asc'); h.classList.remove('desc');});
+                th.classList.toggle('asc', !currentIsAsc);
+                th.classList.toggle('desc', currentIsAsc);
+                const asc = !currentIsAsc;
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                rows.sort(comparer(colIdx, asc));
+                rows.forEach(function(r){ tbody.appendChild(r); });
+            });
+        });
+    });
+    </script>
+    {% endblock %}
