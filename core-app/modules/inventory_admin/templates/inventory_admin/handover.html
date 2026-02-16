@@ -142,7 +142,9 @@ function fillUser(type, user) {
         if (user.groups.indexOf('Domain Admins') !== -1) {
             dept = 'Domain Admins';
         } else {
-            const gg = user.groups.find(g => g && g.startsWith && g.startsWith('GG'));
+            // Ignore generic GG groups that should not determine department.
+            const EXCEPTIONS = ['GG-Alle-Mitarbeiter', 'GG-Remote-Desktop'];
+            const gg = user.groups.find(g => g && g.startsWith && g.startsWith('GG') && EXCEPTIONS.indexOf(g) === -1);
             if (gg) {
                 dept = gg;
             }

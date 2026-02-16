@@ -91,15 +91,17 @@ def handover_device(id):
             try:
                 ldap = LDAPConnector()
                 groups = ldap.get_user_groups(current_user.username)
-                # Prefer Domain Admins if present, otherwise a group that starts with 'GG'.
+                # Prefer Domain Admins if present, otherwise select the first
+                # GG-* group that is NOT an exception (some GG groups are generic
+                # and should be ignored for department assignment).
+                GG_EXCEPTIONS = ('GG-Alle-Mitarbeiter', 'GG-Remote-Desktop')
                 selected = None
                 if groups:
-                    # If user is member of Domain Admins, prefer that group explicitly.
                     if 'Domain Admins' in groups:
                         selected = 'Domain Admins'
                     else:
                         for g in groups:
-                            if g and g.startswith('GG'):
+                            if g and g.startswith('GG') and g not in GG_EXCEPTIONS:
                                 selected = g
                                 break
                 if selected and not form.giver_department.data:
@@ -142,12 +144,13 @@ def handover_device(id):
                     ldap = LDAPConnector()
                     groups = ldap.get_user_groups(receiver.ldap_username)
                     selected = None
+                    GG_EXCEPTIONS = ('GG-Alle-Mitarbeiter', 'GG-Remote-Desktop')
                     if groups:
                         if 'Domain Admins' in groups:
                             selected = 'Domain Admins'
                         else:
                             for g in groups:
-                                if g and g.startswith('GG'):
+                                if g and g.startswith('GG') and g not in GG_EXCEPTIONS:
                                     selected = g
                                     break
                     if selected:
