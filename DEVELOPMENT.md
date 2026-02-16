@@ -474,3 +474,14 @@ For issues and questions:
 2. Review ARCHITECTURE.md
 3. Check container logs
 4. Contact network administration team
+
+## Active LDAP Group (session)
+
+When users log in, the application records an `active` LDAP group in the session (`session['active_ldap_group']`). Key points for developers and operators:
+
+- If a user belongs to multiple LDAP groups, the system prefers the group that has a corresponding local `Role` with the most permissions and marks it active.
+- Permission decorators and UI decisions may prefer the active group when evaluating access.
+- A module-level permission named `<module>.access` grants access to all permissions under that module (i.e., `module.*`) when the user's active group maps to the Role that holds that permission.
+- To ensure expected behavior, verify that LDAP groups are added as local `Role` records via the `Manage Group Permissions` UI and that the required `<module>.access` permissions are assigned.
+
+This behavior was added to simplify group-based module access in multi-group scenarios.

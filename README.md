@@ -66,6 +66,14 @@ http://your-server-ip:8080
 - [Architecture](ARCHITECTURE.md) - System architecture and design
 - [Development](DEVELOPMENT.md) - Development setup and guidelines
 
+## Repository
+
+This project's Git repository is hosted on GitHub:
+
+- Repository: https://github.com/ghanitoos/indigo.git
+
+Updates and issue tracking are managed via the GitHub repository.
+
 ## Technology Stack
 
 - **Backend**: Python 3.12, Flask

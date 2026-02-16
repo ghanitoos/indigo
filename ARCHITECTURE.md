@@ -119,6 +119,12 @@ Modules are automatically discovered and registered based on:
 - Users authenticate with their domain credentials
 - LDAP groups mapped to application roles
 
+### Active LDAP Group (session-level)
+
+The application now records an "active" LDAP group in the user's session on login. When a user is a member of multiple LDAP groups, the active group is selected (preferentially the group that has the richest local Role permissions) and stored as `session['active_ldap_group']`.
+
+Permission checks and UI decisions may prefer the active group when evaluating access. Module-level access can be granted to a Role via permissions such as `<module>.access` which implies access to `module.*` permissions for users whose active group maps to that Role.
+
 ### Session Management
 
 - Server-side sessions stored in database
