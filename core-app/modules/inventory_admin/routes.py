@@ -175,7 +175,9 @@ def handover_device(id):
                 try:
                     active = session.get('active_ldap_group')
                     if active:
-                        giver.department = active
+                                giver.department = active
+                                db.session.add(giver)
+                                db.session.flush()
                 except Exception:
                     pass
 
@@ -185,6 +187,8 @@ def handover_device(id):
                 active = session.get('active_ldap_group')
                 if active:
                     giver.department = active
+                    db.session.add(giver)
+                    db.session.flush()
             except Exception:
                 pass
 
