@@ -24,6 +24,43 @@ def index():
         last_handover_map[d.id] = last
     return render_template('inventory_admin/index.html', devices=devices, last_handover_map=last_handover_map)
 
+
+@inventory_admin_bp.route('/my-devices')
+@login_required
+@require_permission('inventory_admin.access')
+def my_devices():
+    """Show devices related to the current user (both currently held and returned)."""
+    username = getattr(current_user, 'username', None)
+    # prepare last handover mapping
+    devices = Device.query.all()
+    last_handover_map = {}
+    for d in devices:
+        last = d.handovers.order_by(Handover.handover_date.desc()).first()
+        last_handover_map[d.id] = last
+
+    # currently held devices: those whose last handover receiver matches current user and no return_date
+    current_devices = []
+    for d in devices:
+        last = last_handover_map.get(d.id)
+        if last and not last.return_date:
+            try:
+                if last.receiver and last.receiver.ldap_username == username:
+                    current_devices.append({'device': d, 'handover': last})
+            except Exception:
+                pass
+
+    # historical devices: handovers where receiver ldap_username == username and return_date is set
+    historical_handovers = Handover.query.join(PersonRef, Handover.receiver).filter(PersonRef.ldap_username == username, Handover.return_date.isnot(None)).order_by(Handover.return_date.desc()).all()
+    # unique devices from historical handovers
+    historical_devices = []
+    seen = set()
+    for h in historical_handovers:
+        if h.device_id not in seen:
+            historical_devices.append({'device': h.device, 'handover': h})
+            seen.add(h.device_id)
+
+    return render_template('inventory_admin/my_devices.html', current_devices=current_devices, historical_devices=historical_devices, last_handover_map=last_handover_map)
+
 @inventory_admin_bp.route('/add', methods=['GET', 'POST'])
 @login_required
 @require_permission('inventory_admin.create')

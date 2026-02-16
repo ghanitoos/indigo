@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1>Meine Geräte</h1>
+  <p>Übersicht der Geräte, die Ihnen zugeordnet sind (aktuell und in der Vergangenheit).</p>
+
+  <div class="mb-4">
+    <h4>Derzeit in Ihrem Besitz <small class="text-muted">({{ current_devices|length }})</small></h4>
+    {% if current_devices %}
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Inventarnummer</th>
+            <th>Modell</th>
+            <th>Seriennummer</th>
+            <th>Übergabedatum</th>
+            <th>Aktionen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in current_devices %}
+          <tr>
+            <td>{{ entry.device.inventory_number }}</td>
+            <td>{{ entry.device.model_name }}</td>
+            <td>{{ entry.device.serial_number }}</td>
+            <td>{{ entry.handover.handover_date.strftime('%d.%m.%Y') }}</td>
+            <td>
+              <a href="{{ url_for('inventory_admin.return_handover', handover_id=entry.handover.id) }}" class="btn btn-sm btn-outline-warning">Rückgabe vermerken</a>
+              <a href="{{ url_for('inventory_admin.protocol', handover_id=entry.handover.id) }}" class="btn btn-sm btn-outline-info">Protokoll</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="text-muted">Sie haben derzeit keine Geräte ausgegeben.</p>
+    {% endif %}
+  </div>
+
+  <div>
+    <h4>Frühere Geräte (zurückgegeben) <small class="text-muted">({{ historical_devices|length }})</small></h4>
+    {% if historical_devices %}
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Inventarnummer</th>
+            <th>Modell</th>
+            <th>Seriennummer</th>
+            <th>Rückgabedatum</th>
+            <th>Aktionen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in historical_devices %}
+          <tr>
+            <td>{{ entry.device.inventory_number }}</td>
+            <td>{{ entry.device.model_name }}</td>
+            <td>{{ entry.device.serial_number }}</td>
+            <td>{{ entry.handover.return_date.strftime('%d.%m.%Y') }}</td>
+            <td>
+              <a href="{{ url_for('inventory_admin.protocol_return', handover_id=entry.handover.id) }}" class="btn btn-sm btn-outline-secondary">Rückgabeprotokoll</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="text-muted">Keine zurückgegebenen Geräte gefunden.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
