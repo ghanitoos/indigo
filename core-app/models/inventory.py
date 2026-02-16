@@ -13,6 +13,9 @@ class Device(BaseModel):
     scope = db.Column(db.String(100), nullable=True) # e.g. "Employee Laptop", "Pool Device"
     notes = db.Column(db.Text, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    # When a device is discarded/broken, record the date and optional notes
+    discarded_at = db.Column(db.Date, nullable=True)
+    discarded_notes = db.Column(db.Text, nullable=True)
 
     # Relationships
     handovers = db.relationship('Handover', foreign_keys='Handover.device_id', backref='device', lazy='dynamic')

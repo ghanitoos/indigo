@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash, request, jsonify, current_app, send_from_directory, session
+from flask import render_template, redirect, url_for, flash, request, jsonify, current_app, send_from_directory
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from models.inventory import Device, PersonRef, Handover, InventorySettings
@@ -7,6 +7,7 @@ from auth.permissions import require_permission
 from . import inventory_admin_bp
 from .forms import DeviceForm, HandoverForm, ReturnForm
 from datetime import datetime
+from datetime import date as _date
 import os
 from extensions import db
 from extensions import csrf
@@ -87,34 +88,6 @@ def handover_device(id):
                 parts = current_user.display_name.split(' ', 1)
                 form.giver_first_name.data = parts[0]
                 form.giver_last_name.data = parts[1] if len(parts) > 1 else ''
-            # Pre-fill giver department from LDAP groups if available
-            try:
-                ldap = LDAPConnector()
-                groups = ldap.get_user_groups(current_user.username)
-                # Prefer Domain Admins if present, otherwise select the first
-                # GG-* group that is NOT an exception (some GG groups are generic
-                # and should be ignored for department assignment).
-                GG_EXCEPTIONS = ('GG-Alle-Mitarbeiter', 'GG-Remote-Desktop')
-                selected = None
-                if groups:
-                    if 'Domain Admins' in groups:
-                        selected = 'Domain Admins'
-                    else:
-                        for g in groups:
-                            if g and g.startswith('GG') and g not in GG_EXCEPTIONS:
-                                selected = g
-                                break
-                if selected and not form.giver_department.data:
-                    form.giver_department.data = selected
-            except Exception:
-                pass
-            # If active LDAP group is in session, set it as giver department (always override)
-            try:
-                active = session.get('active_ldap_group')
-                if active:
-                    form.giver_department.data = active
-            except Exception:
-                pass
         except Exception:
             pass
 
@@ -136,27 +109,6 @@ def handover_device(id):
                     department=form.receiver_department.data
                 )
                 db.session.add(receiver)
-        else:
-            # If receiver exists but department is missing, attempt to auto-fill
-            # from LDAP groups that start with 'GG' (excluding Domain Admins members).
-            try:
-                if not receiver.department and getattr(receiver, 'ldap_username', None):
-                    ldap = LDAPConnector()
-                    groups = ldap.get_user_groups(receiver.ldap_username)
-                    selected = None
-                    GG_EXCEPTIONS = ('GG-Alle-Mitarbeiter', 'GG-Remote-Desktop')
-                    if groups:
-                        if 'Domain Admins' in groups:
-                            selected = 'Domain Admins'
-                        else:
-                            for g in groups:
-                                if g and g.startswith('GG') and g not in GG_EXCEPTIONS:
-                                    selected = g
-                                    break
-                    if selected:
-                        receiver.department = selected
-            except Exception:
-                pass
 
         # Handle Giver
         giver = None
@@ -171,29 +123,9 @@ def handover_device(id):
                     ldap_username=form.giver_ldap_username.data,
                     first_name=form.giver_first_name.data,
                     last_name=form.giver_last_name.data,
-                        department=form.giver_department.data
+                    department=form.giver_department.data
                 )
                 db.session.add(giver)
-                # If active LDAP group present, override department to ensure consistency
-                try:
-                    active = session.get('active_ldap_group')
-                    if active:
-                                giver.department = active
-                                db.session.add(giver)
-                                db.session.flush()
-                except Exception:
-                    pass
-
-        else:
-            # If giver exists, ensure department follows active LDAP group if set
-            try:
-                active = session.get('active_ldap_group')
-                if active:
-                    giver.department = active
-                    db.session.add(giver)
-                    db.session.flush()
-            except Exception:
-                pass
 
         db.session.flush()
 
@@ -358,6 +290,38 @@ def return_handover(handover_id):
             pass
         if notes:
             handover.notes = (handover.notes or '') + '\n\nReturn notes: ' + notes
+        # Archive the returned device record and create a fresh device with the
+        # original inventory number so the returned record remains for history
+        try:
+            device = handover.device
+            # Only archive once: if the device inventory number already contains
+            # a '-RET' suffix, skip
+            if device and (not str(device.inventory_number).endswith('-RET')):
+                orig_inv = device.inventory_number
+                # append RET suffix to old record; ensure uniqueness
+                new_inv = f"{orig_inv}-RET"
+                i = 1
+                while Device.query.filter_by(inventory_number=new_inv).first():
+                    new_inv = f"{orig_inv}-RET-{i}"
+                    i += 1
+                # append return marker to notes
+                ret_marker = f"\n\nZurückgegeben am {handover.return_date.strftime('%d.%m.%Y')} — archiviert"
+                device.notes = (device.notes or '') + ret_marker
+                device.inventory_number = new_inv
+                # create new device record with original inventory number
+                new_device = Device(
+                    inventory_number=orig_inv,
+                    device_type=device.device_type,
+                    model_name=device.model_name,
+                    serial_number=device.serial_number,
+                    scope=device.scope,
+                    notes=device.notes,
+                    is_active=True
+                )
+                db.session.add(new_device)
+        except Exception:
+            # don't block the return operation if archiving fails
+            current_app.logger.exception('Failed to archive/create new device on return')
         db.session.commit()
         flash('Rückgabe vermerkt.', 'success')
         # redirect to the return protocol view
@@ -408,6 +372,31 @@ def return_handover_no_csrf(handover_id):
                 handover.receiver = user_person
             except Exception:
                 pass
+            # Archive returned device and create a new available one (same logic as above)
+            try:
+                device = handover.device
+                if device and (not str(device.inventory_number).endswith('-RET')):
+                    orig_inv = device.inventory_number
+                    new_inv = f"{orig_inv}-RET"
+                    i = 1
+                    while Device.query.filter_by(inventory_number=new_inv).first():
+                        new_inv = f"{orig_inv}-RET-{i}"
+                        i += 1
+                    ret_marker = f"\n\nZurückgegeben am {handover.return_date.strftime('%d.%m.%Y')} — archiviert"
+                    device.notes = (device.notes or '') + ret_marker
+                    device.inventory_number = new_inv
+                    new_device = Device(
+                        inventory_number=orig_inv,
+                        device_type=device.device_type,
+                        model_name=device.model_name,
+                        serial_number=device.serial_number,
+                        scope=device.scope,
+                        notes=device.notes,
+                        is_active=True
+                    )
+                    db.session.add(new_device)
+            except Exception:
+                current_app.logger.exception('Failed to archive/create new device on return (no csrf)')
     except Exception:
         pass
     if notes:
@@ -474,4 +463,25 @@ def delete_device(id):
     db.session.delete(device)
     db.session.commit()
     flash('Gerät wurde gelöscht.', 'success')
+    return redirect(url_for('inventory_admin.index'))
+
+
+@inventory_admin_bp.route('/<int:id>/mark_broken', methods=['POST'])
+@login_required
+@require_permission('inventory_admin.edit')
+@csrf.exempt
+def mark_broken(id):
+    """Mark a device as broken/discarded."""
+    device = Device.query.get_or_404(id)
+    notes = request.form.get('discard_notes') or ''
+    try:
+        device.is_active = False
+        device.discarded_at = _date.today()
+        if notes:
+            device.discarded_notes = (device.discarded_notes or '') + '\n' + notes
+        db.session.commit()
+        flash('Gerät als defekt markiert.', 'success')
+    except Exception:
+        current_app.logger.exception('Failed to mark device broken')
+        flash('Fehler beim Markieren des Geräts.', 'danger')
     return redirect(url_for('inventory_admin.index'))

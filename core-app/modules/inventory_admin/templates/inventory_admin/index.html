@@ -97,6 +97,12 @@
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             </form>
+                            <!-- Mark broken form -->
+                            <form method="post" action="{{ url_for('inventory_admin.mark_broken', id=device.id) }}" style="display:inline; margin:0 4px; padding:0;">
+                                <button type="submit" class="btn btn-sm btn-outline-dark" title="Als defekt markieren" onclick="return confirm('Gerät als defekt markieren?');">
+                                    <i class="fa-solid fa-ban"></i>
+                                </button>
+                            </form>
                         </div>
                     </td>
                 </tr>
