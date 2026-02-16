@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash, request, jsonify, current_app, send_from_directory
+from flask import render_template, redirect, url_for, flash, request, jsonify, current_app, send_from_directory, session
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from models.inventory import Device, PersonRef, Handover, InventorySettings
@@ -104,6 +104,13 @@ def handover_device(id):
                                 break
                 if selected and not form.giver_department.data:
                     form.giver_department.data = selected
+            except Exception:
+                pass
+            # If active LDAP group is in session, prefer that (overrides nothing, only fills if empty)
+            try:
+                active = session.get('active_ldap_group')
+                if active and not form.giver_department.data:
+                    form.giver_department.data = active
             except Exception:
                 pass
         except Exception:
