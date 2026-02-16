@@ -87,6 +87,14 @@ def handover_device(id):
                 parts = current_user.display_name.split(' ', 1)
                 form.giver_first_name.data = parts[0]
                 form.giver_last_name.data = parts[1] if len(parts) > 1 else ''
+            # Pre-fill giver department from LDAP groups if available
+            try:
+                ldap = LDAPConnector()
+                groups = ldap.get_user_groups(current_user.username)
+                if groups and not form.giver_department.data:
+                    form.giver_department.data = groups[0]
+            except Exception:
+                pass
         except Exception:
             pass
 

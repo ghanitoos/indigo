@@ -131,7 +131,13 @@ function fillUser(type, user) {
     document.getElementById(type + '_ldap_username').value = user.ldap_username;
     document.getElementById(type + '_first_name').value = user.first_name;
     document.getElementById(type + '_last_name').value = user.last_name;
-    document.getElementById(type + '_department').value = user.department;
+    // If department is provided from LDAP, use it; otherwise if groups are returned
+    // prefer the first group as a suggestion.
+    let dept = user.department || '';
+    if (!dept && user.groups && user.groups.length > 0) {
+        dept = user.groups[0];
+    }
+    document.getElementById(type + '_department').value = dept;
     // Reset ID since this is a new selection from LDAP, might be a new PersonRef
     document.getElementById(type + '_id').value = ''; 
 }

@@ -260,12 +260,15 @@ class LDAPConnector:
 
             users = []
             for entry in self.connection.entries:
+                uname = str(entry.sAMAccountName) if entry.sAMAccountName else ''
+                dept = str(entry.department) if entry.department else ''
                 users.append({
-                    'ldap_username': str(entry.sAMAccountName) if entry.sAMAccountName else '',
+                    'ldap_username': uname,
                     'first_name': str(entry.givenName) if entry.givenName else '',
                     'last_name': str(entry.sn) if entry.sn else '',
-                    'department': str(entry.department) if entry.department else '',
+                    'department': dept,
                     'display_name': str(entry.displayName) if entry.displayName else '',
+                    'groups': self.get_user_groups(uname) if uname else []
                 })
 
             users.sort(key=lambda x: x['display_name'])

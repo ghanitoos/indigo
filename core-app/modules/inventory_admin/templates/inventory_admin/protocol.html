@@ -33,16 +33,18 @@
     <div class="device-block">
       <div class="device-line"><strong>Gerät:</strong> {{ handover.device.device_type }} — {{ handover.device.model_name }} ({{ handover.device.inventory_number }})</div>
       <div class="device-line"><strong>Seriennummer:</strong> {{ handover.device.serial_number or '-' }}</div>
-      <div class="device-persons-left" style="margin-top:8px; text-align:left;">
+        <div class="device-persons-left" style="margin-top:8px; text-align:left;">
         <div style="margin-bottom:8px;">
           <div style="font-weight:600;">Empfänger</div>
           <div>Vorname: {{ handover.receiver.first_name or '' }}</div>
           <div>Nachname: {{ handover.receiver.last_name or '' }}</div>
+          <div>Abteilung: {{ handover.receiver.department or '' }}</div>
         </div>
         <div style="margin-bottom:8px;">
           <div style="font-weight:600;">Übergeber</div>
           <div>Vorname: {{ handover.giver.first_name or '' }}</div>
           <div>Nachname: {{ handover.giver.last_name or '' }}</div>
+          <div>Abteilung: {{ handover.giver.department or '' }}</div>
         </div>
       </div>
     </div>
