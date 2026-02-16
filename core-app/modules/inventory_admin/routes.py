@@ -168,9 +168,16 @@ def handover_device(id):
                     ldap_username=form.giver_ldap_username.data,
                     first_name=form.giver_first_name.data,
                     last_name=form.giver_last_name.data,
-                    department=form.giver_department.data
+                        department=form.giver_department.data
                 )
                 db.session.add(giver)
+                    # If active LDAP group present, override department to ensure consistency
+                    try:
+                        active = session.get('active_ldap_group')
+                        if active:
+                            giver.department = active
+                    except Exception:
+                        pass
 
         else:
             # If giver exists, ensure department follows active LDAP group if set
