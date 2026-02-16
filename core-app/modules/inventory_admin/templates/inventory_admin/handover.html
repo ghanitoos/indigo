@@ -135,8 +135,10 @@ function fillUser(type, user) {
     // prefer the first group as a suggestion.
     let dept = user.department || '';
     if (!dept && user.groups && user.groups.length > 0) {
-        // If user is member of Domain Admins, do not auto-fill from GG groups
-        if (user.groups.indexOf('Domain Admins') === -1) {
+        // If user is member of Domain Admins, prefer that group.
+        if (user.groups.indexOf('Domain Admins') !== -1) {
+            dept = 'Domain Admins';
+        } else {
             const gg = user.groups.find(g => g && g.startsWith && g.startsWith('GG'));
             if (gg) {
                 dept = gg;

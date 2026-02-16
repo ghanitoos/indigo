@@ -91,13 +91,15 @@ def handover_device(id):
             try:
                 ldap = LDAPConnector()
                 groups = ldap.get_user_groups(current_user.username)
-                # Prefer a group that starts with 'GG', but do not auto-fill for
-                # users who are members of 'Domain Admins' (they are exception).
+                # Prefer Domain Admins if present, otherwise a group that starts with 'GG'.
                 selected = None
                 if groups:
-                    if 'Domain Admins' not in groups:
+                    # If user is member of Domain Admins, prefer that group explicitly.
+                    if 'Domain Admins' in groups:
+                        selected = 'Domain Admins'
+                    else:
                         for g in groups:
-                            if g.startswith('GG'):
+                            if g and g.startswith('GG'):
                                 selected = g
                                 break
                 if selected and not form.giver_department.data:
@@ -133,11 +135,14 @@ def handover_device(id):
                     ldap = LDAPConnector()
                     groups = ldap.get_user_groups(receiver.ldap_username)
                     selected = None
-                    if groups and 'Domain Admins' not in groups:
-                        for g in groups:
-                            if g and g.startswith('GG'):
-                                selected = g
-                                break
+                    if groups:
+                        if 'Domain Admins' in groups:
+                            selected = 'Domain Admins'
+                        else:
+                            for g in groups:
+                                if g and g.startswith('GG'):
+                                    selected = g
+                                    break
                     if selected:
                         receiver.department = selected
             except Exception:
