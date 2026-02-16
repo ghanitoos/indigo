@@ -72,9 +72,17 @@
                                     </a>
                                 </span>
                             {% else %}
+                                {# Only allow handover for active, non-archived devices without an active handover #}
+                                {% set archived = device.inventory_number.endswith('-RET') %}
+                                {% if device.is_active and not archived %}
                                 <a href="{{ url_for('inventory_admin.handover_device', id=device.id) }}" class="btn btn-sm btn-outline-primary" title="Übergabe">
                                     <i class="fa-solid fa-handshake"></i>
                                 </a>
+                                {% else %}
+                                <a class="btn btn-sm btn-outline-primary disabled" aria-disabled="true" role="button" style="pointer-events:none;" title="Übergabe nicht möglich">
+                                    <i class="fa-solid fa-handshake"></i>
+                                </a>
+                                {% endif %}
                             {% endif %}
                             {% if last %}
                                 <a href="{{ url_for('inventory_admin.protocol', handover_id=last.id) }}" class="btn btn-sm btn-outline-info" title="Übergabeprotokoll">
@@ -102,6 +110,15 @@
                             <form method="post" action="{{ url_for('inventory_admin.mark_broken', id=device.id) }}" style="display:inline; margin:0 4px; padding:0;">
                                 <button type="submit" class="btn btn-sm btn-outline-dark" title="Als defekt markieren" onclick="return confirm('Gerät als defekt markieren?');">
                                     <i class="fa-solid fa-ban"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            {# If device is Ausgemustert (is_active False), show restore button to make it Verfügbar again #}
+                            {% if not device.is_active %}
+                            <form method="post" action="{{ url_for('inventory_admin.restore_device', id=device.id) }}" style="display:inline; margin:0 4px; padding:0;">
+                                <button type="submit" class="btn btn-sm btn-outline-success" title="Wieder verfügbar machen" onclick="return confirm('Gerät wieder verfügbar machen?');">
+                                    <i class="fa-solid fa-rotate-right"></i>
                                 </button>
                             </form>
                             {% endif %}

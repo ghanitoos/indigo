@@ -485,3 +485,22 @@ def mark_broken(id):
         current_app.logger.exception('Failed to mark device broken')
         flash('Fehler beim Markieren des Geräts.', 'danger')
     return redirect(url_for('inventory_admin.index'))
+
+
+@inventory_admin_bp.route('/<int:id>/restore', methods=['POST'])
+@login_required
+@require_permission('inventory_admin.edit')
+@csrf.exempt
+def restore_device(id):
+    """Restore a previously marked-as-broken device to available state."""
+    device = Device.query.get_or_404(id)
+    try:
+        device.is_active = True
+        device.discarded_at = None
+        device.discarded_notes = None
+        db.session.commit()
+        flash('Gerät wieder verfügbar gemacht.', 'success')
+    except Exception:
+        current_app.logger.exception('Failed to restore device')
+        flash('Fehler beim Wiederherstellen des Geräts.', 'danger')
+    return redirect(url_for('inventory_admin.index'))
