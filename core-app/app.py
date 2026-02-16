@@ -53,6 +53,29 @@ def create_app(config_name=None):
     @login_required
     def index():
         return render_template('base.html')
+
+    @main_bp.route('/debug/session-info')
+    @login_required
+    def debug_session_info():
+        # Return session and current user role info for debugging.
+        try:
+            from flask import jsonify, session
+            user = current_user
+            roles = [r.name for r in getattr(user, 'roles', [])]
+            perms = []
+            for r in getattr(user, 'roles', []):
+                for p in getattr(r, 'permissions', []):
+                    perms.append(p.name)
+            return jsonify({
+                'username': user.username,
+                'display_name': user.display_name,
+                'roles': roles,
+                'permissions': sorted(list(set(perms))),
+                'session_active_ldap_group': session.get('active_ldap_group'),
+                'session_ldap_groups': session.get('ldap_groups')
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
         
     app.register_blueprint(main_bp)
     

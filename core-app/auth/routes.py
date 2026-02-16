@@ -2,7 +2,7 @@
 Authentication routes (login, logout).
 """
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session
 from flask_login import login_user, logout_user, login_required, current_user
 from extensions import db
 from models.user import User
@@ -60,6 +60,22 @@ def login():
                     for gr in group_roles:
                         if gr not in user.roles:
                             user.roles.append(gr)
+
+                    # Determine an "active" LDAP group for this session.
+                    # Prefer groups that have local Role records with assigned permissions
+                    # so users see the special access granted via Manage Group Permissions.
+                    active_group = None
+                    if group_roles:
+                        # sort by number of permissions (prefer richer role)
+                        group_roles.sort(key=lambda r: len(r.permissions) if r.permissions else 0, reverse=True)
+                        active_group = group_roles[0].name
+                    else:
+                        # fallback: first LDAP group from LDAP attributes
+                        active_group = groups[0] if groups else None
+
+                    # store LDAP groups and the chosen active group in the session
+                    session['ldap_groups'] = groups
+                    session['active_ldap_group'] = active_group
 
                 # Ensure a PersonRef exists for this LDAP user so my-devices works
                 try:

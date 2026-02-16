@@ -36,7 +36,12 @@
                             <i class="fas fa-user text-white"></i>
                         </div>
                         {% endif %}
-                        <span class="d-none d-sm-inline">{{ current_user.display_name or current_user.username }}</span>
+                        <div class="d-none d-sm-inline">
+                            <div>{{ current_user.display_name or current_user.username }}</div>
+                            {% if session.get('active_ldap_group') %}
+                            <div class="small text-muted">{{ session.get('active_ldap_group') }}</div>
+                            {% endif %}
+                        </div>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end text-small shadow" aria-labelledby="dropdownUser1">
                         <li><a class="dropdown-item" href="{{ url_for('profile.view_profile') }}">{{ get_text('profile.my_profile') }}</a></li>
@@ -64,6 +69,9 @@
                         </div>
                         {% endif %}
                         <div class="small fw-bold text-truncate">{{ current_user.display_name or current_user.username }}</div>
+                        {% if session.get('active_ldap_group') %}
+                        <div class="small text-muted text-truncate">{{ session.get('active_ldap_group') }}</div>
+                        {% endif %}
                     </div>
 
                     <ul class="nav flex-column">
