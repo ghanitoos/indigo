@@ -113,6 +113,148 @@ docker exec -it admin-panel-postgres psql -U adminuser -d adminpanel
 
 Note: An earlier duplicate `modules/` directory at the repository root has been removed. The canonical location for all modules is `core-app/modules/`.
 
+## Backup / GitHub (recommended safe workflow)
+
+This section documents a reliable, secure workflow to back up the project source and recommended additional backups for runtime data. Follow these steps to avoid accidental disclosure of secrets and to make restores straightforward.
+
+1) Prepare repository for backup
+
+- Ensure working tree is clean and all intended changes are committed locally:
+
+```bash
+cd /opt/admin-panel
+git status --porcelain
+git add -A
+git commit -m "chore: backup snapshot" || true
+```
+
+- Keep a dedicated backup branch (optional):
+
+```bash
+git checkout -b backup/$(date -I)
+git push -u origin HEAD
+```
+
+2) Secrets handling (DO NOT accidentally push secrets)
+
+- Add sensitive files to `.gitignore` (if not already):
+
+```
+.env
+.env.*
+~/.secrets
+```
+
+- Prefer NOT to store secrets in the repo. Use one of these alternatives:
+  - Use a secrets manager (HashiCorp Vault, AWS Secrets Manager, etc.).
+  - Use `git-crypt` or GPG to store only encrypted artifacts in the repo.
+  - Use deploy keys or GitHub Actions secrets for automated CI pushes.
+
+3) Authentication options for pushing
+
+- Recommended: use deploy keys or a machine user with a minimal-scope Personal Access Token (PAT) stored securely on the server.
+- If using a PAT on the server, store it in a protected file and restrict file permissions:
+
+```bash
+mkdir -p ~/.secrets
+echo "<YOUR_GITHUB_TOKEN>" > ~/.secrets/github_token
+chmod 600 ~/.secrets/github_token
+```
+
+- Prefer the `gh` CLI or credential helpers to avoid exposing tokens on the command line:
+
+```bash
+# interactive login (safer)
+gh auth login --with-token < ~/.secrets/github_token
+
+# or use credential helper to cache creds
+git config --global credential.helper store
+```
+
+4) Push (example using token file)
+
+```bash
+GITHUB_TOKEN=$(cat ~/.secrets/github_token)
+git push https://<github-username>:${GITHUB_TOKEN}@github.com/<github-username>/<repo>.git
+```
+
+Notes: avoid putting the token in shell history or logs. Using `gh` or deploy keys removes that risk.
+
+5) Verifying backup and provenance
+
+- Verify the remote branch and commit are present:
+
+```bash
+git remote -v
+git ls-remote origin HEAD
+```
+
+- Tag releases or snapshots so restores can reference stable points:
+
+```bash
+git tag -a backup-$(date +%F) -m "Backup snapshot"
+git push origin --tags
+```
+
+6) Backing up runtime data (essential)
+
+Source code backup alone is not sufficient. Back up runtime data and DB regularly.
+
+- PostgreSQL data (example using `pg_dump` inside container):
+
+```bash
+docker exec -t admin-panel-postgres pg_dump -U adminuser adminpanel > /opt/admin-panel/data/backups/adminpanel-$(date +%F).sql
+```
+
+- Back up volumes and persistent folders (example for `data/`):
+
+```bash
+tar -czf /opt/admin-panel/data/backups/data-backup-$(date +%F).tgz -C /opt/admin-panel/data .
+```
+
+- Consider automating DB + file backups with a cron job or scheduled CI pipeline and rotate backups (keep retention policy).
+
+7) Encrypted repository artifacts (optional)
+
+- If you must keep configuration in the repo, encrypt it with `git-crypt` or GPG. Document decryption and key distribution.
+
+8) Mirroring and offline bundles
+
+- For extra safety create a mirror or bundle:
+
+```bash
+git clone --mirror /opt/admin-panel /opt/admin-panel-mirror.git
+cd /opt/admin-panel-mirror.git
+git remote add backup https://github.com/<user>/<backup-repo>.git
+git push --mirror backup
+
+# or create bundle
+git -C /opt/admin-panel bundle create /opt/admin-panel/data/backups/indigo.bundle --all
+```
+
+9) Restore steps (high-level)
+
+- To restore source from GitHub: `git clone https://github.com/<user>/<repo>.git` and checkout the desired tag/branch.
+- To restore database: `psql -U adminuser -d adminpanel < adminpanel-YYYY-MM-DD.sql` (inside the postgres container or via networked psql).
+
+10) Token and access governance
+
+- Limit PAT scope to only the privileges needed (typically `repo` for private repos). Rotate tokens periodically and revoke lost tokens immediately.
+- Prefer deploy keys for a single machine push, or use a machine user with 2FA-backed credentials.
+
+11) Automation & CI
+
+- Consider automating backups (source + DB dumps + archives) via a scheduled CI workflow or a server cron that runs backup scripts and pushes artifacts to an encrypted backup repo or object storage.
+
+Checklist before any push:
+
+- [ ] `.env` and other secrets are ignored or encrypted
+- [ ] All code changes are committed and tests (if any) pass
+- [ ] Backup branch or tag created for snapshot
+- [ ] DB dump and data archive created and stored offsite
+
+If you want, I can add a small backup script (`scripts/backup.sh`) and a sample cron entry to automate DB + repo snapshot and push.
+
 ## Coding Standards
 
 ### Python Code Style
