@@ -35,176 +35,196 @@
                 <tr>
                     <td>{{ device.inventory_number }}</td>
                     <td>{{ device.device_type }}</td>
-                    <td>{{ device.model_name }}</td>
-                    <td>{{ device.serial_number }}</td>
-                    <td>
-                        {# Show LDAP username: if last handover exists and has return_date, show giver (the one who returned it), otherwise show current receiver #}
-                        {% set last_h = last_handover_map.get(device.id) %}
-                        {% if last_h and last_h.return_date and last_h.giver and last_h.giver.ldap_username %}
-                            <code>{{ last_h.giver.ldap_username }}</code>
-                        {% elif last_h and last_h.receiver and last_h.receiver.ldap_username %}
-                            <code>{{ last_h.receiver.ldap_username }}</code>
-                        {% else %}
-                            &mdash;
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% set last = last_handover_map.get(device.id) %}
-                        {% if not device.is_active %}
-                            <span class="badge bg-danger">Ausgemustert</span>
-                        {% elif not last %}
-                            <span class="badge bg-secondary">Verfügbar</span>
-                        {% elif last and not last.return_date %}
-                            <span class="badge bg-warning text-dark">Ausgegeben an {{ last.receiver.first_name }} {{ last.receiver.last_name }}</span>
-                        {% elif last and last.return_date %}
-                            <span class="badge bg-info text-dark">Zurückgegeben am {{ last.return_date.strftime('%d.%m.%Y') }}</span>
-                        {% else %}
-                            <span class="badge bg-secondary">Unbekannt</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div class="btn-group">
-                            <a href="{{ url_for('inventory_admin.edit_device', id=device.id) }}" class="btn btn-sm btn-outline-secondary" title="Bearbeiten">
-                                <i class="fa-solid fa-edit"></i>
-                            </a>
-                            {# Show handover button only when device is active, not archived (-RET), and available (no active handover) #}
-                            {% set archived = ('-RET' in device.inventory_number) %}
-                            {% set active = active_handover_map.get(device.id) %}
-                            {% set available = device.is_active and not archived and (not active) %}
-                            {% if available %}
-                                <a href="{{ url_for('inventory_admin.handover_device', id=device.id) }}" class="btn btn-sm btn-outline-primary" title="Übergabe">
-                                    <i class="fa-solid fa-handshake"></i>
+                    {% extends "base.html" %}
+
+                    {% block content %}
+                    <div class="container-fluid">
+                        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                            <h1 class="h2">Inventarverwaltung</h1>
+                            <div class="btn-toolbar mb-2 mb-md-0">
+                                <a href="{{ url_for('inventory_admin.add_device') }}" class="btn btn-sm btn-primary">
+                                    <i class="fa-solid fa-plus"></i> Neues Gerät
                                 </a>
-                            {% endif %}
-                            {% if last %}
-                                <a href="{{ url_for('inventory_admin.protocol', handover_id=last.id) }}" class="btn btn-sm btn-outline-info" title="Übergabeprotokoll">
-                                    <i class="fa-solid fa-file-lines"></i>
-                                </a>
-                                {% if last.return_date %}
-                                    <a href="{{ url_for('inventory_admin.protocol_return', handover_id=last.id) }}" class="btn btn-sm btn-outline-secondary" title="Rückgabeprotokoll">
-                                        <i class="fa-solid fa-file-export"></i>
+                                {# Show logo upload to users with edit permission #}
+                                {% if current_user.is_authenticated and (current_user.has_role('admin') or current_user.has_permission('inventory_admin.edit')) %}
+                                    <a href="{{ url_for('inventory_admin.upload_logo') }}" class="btn btn-sm btn-outline-secondary ms-2">
+                                        <i class="fa-solid fa-image"></i> Logo hochladen
                                     </a>
-                                {% else %}
-                                    {# Quick return: show preview modal and confirm to post return_no_csrf #}
-                                    <form id="return-form-{{ last.id }}" method="post" action="{{ url_for('inventory_admin.return_handover_no_csrf', handover_id=last.id) }}" style="display:inline; margin:0; padding:0;" onsubmit="return confirm('Rückgabe bestätigen?');">
-                                        <input type="hidden" name="return_date" value="{{ today }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Rückgabe vermerken">
-                                            <i class="fa-solid fa-rotate-left"></i>
-                                        </button>
-                                    </form>
                                 {% endif %}
-                            {% endif %}
-
-                            <!-- Delete form -->
-                            <form method="post" action="{{ url_for('inventory_admin.delete_device', id=device.id) }}" style="display:inline; margin:0; padding:0;">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen" onclick="return confirm('Gerät wirklich löschen? Dies entfernt auch die zugehörigen Übergaben.');">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </form>
-                            {# Show 'mark broken' only for devices that are active and currently available (no active handover) #}
-                            {% if device.is_active and not last %}
-                            <form method="post" action="{{ url_for('inventory_admin.mark_broken', id=device.id) }}" style="display:inline; margin:0 4px; padding:0;">
-                                <button type="submit" class="btn btn-sm btn-outline-dark" title="Als defekt markieren" onclick="return confirm('Gerät als defekt markieren?');">
-                                    <i class="fa-solid fa-ban"></i>
-                                </button>
-                            </form>
-                            {% endif %}
-
-                            {# If device is Ausgemustert (is_active False), show restore button to make it Verfügbar again #}
-                            {% if not device.is_active %}
-                            <form method="post" action="{{ url_for('inventory_admin.restore_device', id=device.id) }}" style="display:inline; margin:0 4px; padding:0;">
-                                <button type="submit" class="btn btn-sm btn-outline-success" title="Wieder verfügbar machen" onclick="return confirm('Gerät wieder verfügbar machen?');">
-                                    <i class="fa-solid fa-rotate-right"></i>
-                                </button>
-                            </form>
-                            {% endif %}
+                            </div>
                         </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endblock %}
 
-    {% block extra_js %}
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Simple client-side table sorter for small datasets
-        function getCellValue(tr, idx){
-            const cell = tr.children[idx];
-            return cell ? cell.innerText.trim() : '';
-        }
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th class="sortable">Inventarnummer</th>
+                                        <th class="sortable">Gerätetyp</th>
+                                        <th class="sortable">Modell</th>
+                                        <th class="sortable">Seriennummer</th>
+                                        <th class="sortable">LDAP</th>
+                                        <th class="sortable">Status</th>
+                                        <th>Aktionen</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in device_rows %}
+                                    <tr>
+                                        <td>{{ row.device.inventory_number }}</td>
+                                        <td>{{ row.device.device_type }}</td>
+                                        <td>{{ row.device.model_name }}</td>
+                                        <td>{{ row.device.serial_number }}</td>
+                                        <td>
+                                            {% if row.ldap_display and row.ldap_display != '—' %}
+                                                <code>{{ row.ldap_display }}</code>
+                                            {% else %}
+                                                &mdash;
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge {{ row.status_class }}">{{ row.status_text }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group">
+                                                <a href="{{ url_for('inventory_admin.edit_device', id=row.device.id) }}" class="btn btn-sm btn-outline-secondary" title="Bearbeiten">
+                                                    <i class="fa-solid fa-edit"></i>
+                                                </a>
+                                                {# Show handover button only when device is active, not archived (-RET), and available (no active handover) #}
+                                                {% set archived = ('-RET' in row.device.inventory_number) %}
+                                                {% set active = row.active %}
+                                                {% set available = row.device.is_active and not archived and (not active) %}
+                                                {% if available %}
+                                                    <a href="{{ url_for('inventory_admin.handover_device', id=row.device.id) }}" class="btn btn-sm btn-outline-primary" title="Übergabe">
+                                                        <i class="fa-solid fa-handshake"></i>
+                                                    </a>
+                                                {% endif %}
+                                                {% if row.last %}
+                                                    <a href="{{ url_for('inventory_admin.protocol', handover_id=row.last.id) }}" class="btn btn-sm btn-outline-info" title="Übergabeprotokoll">
+                                                        <i class="fa-solid fa-file-lines"></i>
+                                                    </a>
+                                                    {% if row.last.return_date %}
+                                                        <a href="{{ url_for('inventory_admin.protocol_return', handover_id=row.last.id) }}" class="btn btn-sm btn-outline-secondary" title="Rückgabeprotokoll">
+                                                            <i class="fa-solid fa-file-export"></i>
+                                                        </a>
+                                                    {% else %}
+                                                        {# Quick return: show preview modal and confirm to post return_no_csrf #}
+                                                        <form id="return-form-{{ row.last.id }}" method="post" action="{{ url_for('inventory_admin.return_handover_no_csrf', handover_id=row.last.id) }}" style="display:inline; margin:0; padding:0;" onsubmit="return confirm('Rückgabe bestätigen?');">
+                                                            <input type="hidden" name="return_date" value="{{ today }}">
+                                                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Rückgabe vermerken">
+                                                                <i class="fa-solid fa-rotate-left"></i>
+                                                            </button>
+                                                        </form>
+                                                    {% endif %}
+                                                {% endif %}
 
-        function comparer(idx, asc) {
-            return function(a, b) {
-                const v1 = getCellValue(a, idx);
-                const v2 = getCellValue(b, idx);
-                // attempt numeric compare
-                const n1 = parseFloat(v1.replace(/[^0-9\-.,]/g, '').replace(',', '.'));
-                const n2 = parseFloat(v2.replace(/[^0-9\-.,]/g, '').replace(',', '.'));
-                if (!isNaN(n1) && !isNaN(n2)) {
-                    return (n1 - n2) * (asc ? 1 : -1);
-                }
-                return v1.localeCompare(v2, undefined, {sensitivity: 'base'}) * (asc ? 1 : -1);
-            };
-        }
+                                                <!-- Delete form -->
+                                                <form method="post" action="{{ url_for('inventory_admin.delete_device', id=row.device.id) }}" style="display:inline; margin:0; padding:0;">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen" onclick="return confirm('Gerät wirklich löschen? Dies entfernt auch die zugehörigen Übergaben.');">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                                {# Show 'mark broken' only for devices that are active and currently available (no active handover) #}
+                                                {% if row.device.is_active and not row.last %}
+                                                    <form method="post" action="{{ url_for('inventory_admin.mark_broken', id=row.device.id) }}" style="display:inline; margin:0 4px; padding:0;">
+                                                        <button type="submit" class="btn btn-sm btn-outline-dark" title="Als defekt markieren" onclick="return confirm('Gerät als defekt markieren?');">
+                                                            <i class="fa-solid fa-ban"></i>
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
 
-        document.querySelectorAll('th.sortable').forEach(function(th, colIdx) {
-            th.style.cursor = 'pointer';
-            th.addEventListener('click', function() {
-                const table = th.closest('table');
-                const tbody = table.querySelector('tbody');
-                const currentIsAsc = th.classList.contains('asc');
-                // clear other headings
-                table.querySelectorAll('th.sortable').forEach(h=>{h.classList.remove('asc'); h.classList.remove('desc');});
-                th.classList.toggle('asc', !currentIsAsc);
-                th.classList.toggle('desc', currentIsAsc);
-                const asc = !currentIsAsc;
-                const rows = Array.from(tbody.querySelectorAll('tr'));
-                rows.sort(comparer(colIdx, asc));
-                rows.forEach(function(r){ tbody.appendChild(r); });
-            });
-        });
-        // Quick return modal flow
-        // expose globally so inline onclick works
-        window.openReturnPreview = function(handoverId){
-            const modal = document.getElementById('returnPreviewModal');
-            const body = modal.querySelector('.modal-body');
-            body.innerHTML = '<p>Lade Vorschau…</p>';
-            fetch(`{{ url_for('inventory_admin.protocol', handover_id=0) }}`.replace('/0/', `/${handoverId}/`))
-                .then(r => r.text()).then(html => { body.innerHTML = html; }).catch(() => { body.innerHTML = '<p class="text-danger">Vorschau konnte nicht geladen werden.</p>'; });
-            modal.style.display = 'block';
-            const confirmBtn = document.getElementById('confirmReturnBtn');
-            confirmBtn.onclick = function(){
-                fetch(`{{ url_for('inventory_admin.return_handover_no_csrf', handover_id=0) }}`.replace('/0', `/${handoverId}`), {
-                    method: 'POST',
-                    headers: {'Content-Type':'application/x-www-form-urlencoded'},
-                    body: `return_date=${encodeURIComponent(new Date().toISOString().slice(0,10))}`
-                }).then(r=>{ if (r.redirected) { window.location = r.url; } else { window.location.reload(); } }).catch(()=>{ alert('Fehler beim Senden der Rückgabe'); });
-            };
-        };
+                                                {# If device is Ausgemustert (is_active False), show restore button to make it Verfügbar again #}
+                                                {% if not row.device.is_active %}
+                                                    <form method="post" action="{{ url_for('inventory_admin.restore_device', id=row.device.id) }}" style="display:inline; margin:0 4px; padding:0;">
+                                                        <button type="submit" class="btn btn-sm btn-outline-success" title="Wieder verfügbar machen" onclick="return confirm('Gerät wieder verfügbar machen?');">
+                                                            <i class="fa-solid fa-rotate-right"></i>
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endblock %}
 
-        function hideReturnPreview() { document.getElementById('returnPreviewModal').style.display = 'none'; }
+                        {% block extra_js %}
+                        <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            // Simple client-side table sorter for small datasets
+                            function getCellValue(tr, idx){
+                                const cell = tr.children[idx];
+                                return cell ? cell.innerText.trim() : '';
+                            }
 
-        document.querySelectorAll('.return-modal-close').forEach(function(el){ el.addEventListener('click', hideReturnPreview); });
+                            function comparer(idx, asc) {
+                                return function(a, b) {
+                                    const v1 = getCellValue(a, idx);
+                                    const v2 = getCellValue(b, idx);
+                                    // attempt numeric compare
+                                    const n1 = parseFloat(v1.replace(/[^0-9\-.,]/g, '').replace(',', '.'));
+                                    const n2 = parseFloat(v2.replace(/[^0-9\-.,]/g, '').replace(',', '.'));
+                                    if (!isNaN(n1) && !isNaN(n2)) {
+                                        return (n1 - n2) * (asc ? 1 : -1);
+                                    }
+                                    return v1.localeCompare(v2, undefined, {sensitivity: 'base'}) * (asc ? 1 : -1);
+                                };
+                            }
 
-        // modal close
-        document.querySelectorAll('.return-modal-close').forEach(function(el){ el.addEventListener('click', hideReturnPreview); });
-    });
-    </script>
-    {% endblock %}
+                            document.querySelectorAll('th.sortable').forEach(function(th, colIdx) {
+                                th.style.cursor = 'pointer';
+                                th.addEventListener('click', function() {
+                                    const table = th.closest('table');
+                                    const tbody = table.querySelector('tbody');
+                                    const currentIsAsc = th.classList.contains('asc');
+                                    // clear other headings
+                                    table.querySelectorAll('th.sortable').forEach(h=>{h.classList.remove('asc'); h.classList.remove('desc');});
+                                    th.classList.toggle('asc', !currentIsAsc);
+                                    th.classList.toggle('desc', currentIsAsc);
+                                    const asc = !currentIsAsc;
+                                    const rows = Array.from(tbody.querySelectorAll('tr'));
+                                    rows.sort(comparer(colIdx, asc));
+                                    rows.forEach(function(r){ tbody.appendChild(r); });
+                                });
+                            });
+                            // Quick return modal flow
+                            // expose globally so inline onclick works
+                            window.openReturnPreview = function(handoverId){
+                                const modal = document.getElementById('returnPreviewModal');
+                                const body = modal.querySelector('.modal-body');
+                                body.innerHTML = '<p>Lade Vorschau…</p>';
+                                fetch(`{{ url_for('inventory_admin.protocol', handover_id=0) }}`.replace('/0/', `/${handoverId}/`))
+                                .then(r => r.text()).then(html => { body.innerHTML = html; }).catch(() => { body.innerHTML = '<p class="text-danger">Vorschau konnte nicht geladen werden.</p>'; });
+                                modal.style.display = 'block';
+                                const confirmBtn = document.getElementById('confirmReturnBtn');
+                                confirmBtn.onclick = function(){
+                                    fetch(`{{ url_for('inventory_admin.return_handover_no_csrf', handover_id=0) }}`.replace('/0', `/${handoverId}`), {
+                                        method: 'POST',
+                                        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+                                        body: `return_date=${encodeURIComponent(new Date().toISOString().slice(0,10))}`
+                                    }).then(r=>{ if (r.redirected) { window.location = r.url; } else { window.location.reload(); } }).catch(()=>{ alert('Fehler beim Senden der Rückgabe'); });
+                                };
+                            };
 
-{# Simple modal markup for return preview #}
-<div id="returnPreviewModal" style="display:none; position:fixed; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1050;">
-    <div style="background:#fff; max-width:900px; margin:60px auto; padding:20px; border-radius:6px; position:relative;">
-        <button class="return-modal-close btn btn-sm btn-outline-secondary" style="position:absolute; right:10px; top:10px;">✕</button>
-        <h4>Rückgabe Vorschau</h4>
-        <div class="modal-body" style="max-height:60vh; overflow:auto;"></div>
-        <div class="mt-3 text-end">
-            <button id="confirmReturnBtn" class="btn btn-primary">Rückgabe bestätigen</button>
-            <button class="return-modal-close btn btn-link">Abbrechen</button>
-        </div>
-    </div>
-</div>
+                            function hideReturnPreview() { document.getElementById('returnPreviewModal').style.display = 'none'; }
+                            document.querySelectorAll('.return-modal-close').forEach(function(el){ el.addEventListener('click', hideReturnPreview); });
+                            // modal close
+                            document.querySelectorAll('.return-modal-close').forEach(function(el){ el.addEventListener('click', hideReturnPreview); });
+                        });
+                        </script>
+                        {% endblock %}
+
+                    {# Simple modal markup for return preview #}
+                    <div id="returnPreviewModal" style="display:none; position:fixed; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1050;">
+                        <div style="background:#fff; max-width:900px; margin:60px auto; padding:20px; border-radius:6px; position:relative;">
+                            <button class="return-modal-close btn btn-sm btn-outline-secondary" style="position:absolute; right:10px; top:10px;">✕</button>
+                            <h4>Rückgabe Vorschau</h4>
+                            <div class="modal-body" style="max-height:60vh; overflow:auto;"></div>
+                            <div class="mt-3 text-end">
+                                <button id="confirmReturnBtn" class="btn btn-primary">Rückgabe bestätigen</button>
+                                <button class="return-modal-close btn btn-link">Abbrechen</button>
+                            </div>
+                        </div>
+                    </div>

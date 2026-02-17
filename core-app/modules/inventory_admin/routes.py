@@ -16,20 +16,77 @@ from extensions import csrf
 @login_required
 @require_permission('inventory_admin.access')
 def index():
-    devices = Device.query.all()
-    # prepare last handover mapping for quick access in template
-    last_handover_map = {}
+    # Order devices deterministically to avoid visual re-ordering on reload
+    devices = Device.query.order_by(Device.inventory_number).all()
+
+    device_rows = []
     for d in devices:
+        # last handover (most recent)
         last = d.handovers.order_by(Handover.handover_date.desc()).first()
-        last_handover_map[d.id] = last
-    # prepare active handover mapping (if a device currently has an active handover without return)
-    active_handover_map = {}
-    for d2 in devices:
+        # active handover if any (no return_date)
         try:
-            active = d2.handovers.filter(Handover.return_date==None).order_by(Handover.handover_date.desc()).first()
+            active = d.handovers.filter(Handover.return_date == None).order_by(Handover.handover_date.desc()).first()
         except Exception:
             active = None
-        active_handover_map[d2.id] = active
+
+        # Resolve LDAP display (prefer giver for returned items)
+        ldap_display = '—'
+        if last and last.return_date and last.giver:
+            g = last.giver
+            if (g.first_name or g.last_name):
+                ldap_display = f"{(g.first_name or '').strip()} {(g.last_name or '').strip()}".strip()
+            elif g.ldap_username:
+                ldap_display = g.ldap_username
+        elif last and last.receiver:
+            r = last.receiver
+            if (r.first_name or r.last_name):
+                ldap_display = f"{(r.first_name or '').strip()} {(r.last_name or '').strip()}".strip()
+            elif r.ldap_username:
+                ldap_display = r.ldap_username
+
+        # Resolve status text / class
+        status_text = 'Unbekannt'
+        status_class = 'bg-secondary'
+        if not d.is_active:
+            status_text = 'Ausgemustert'
+            status_class = 'bg-danger'
+        elif not last:
+            status_text = 'Verfügbar'
+            status_class = 'bg-secondary'
+        elif last and not last.return_date:
+            recv = last.receiver
+            if recv and (recv.first_name or recv.last_name):
+                status_text = f"Ausgegeben an {(recv.first_name or '').strip()} {(recv.last_name or '').strip()}".strip()
+            elif recv and recv.ldap_username:
+                status_text = f"Ausgegeben an {recv.ldap_username}"
+            else:
+                status_text = 'Ausgegeben'
+            status_class = 'bg-warning text-dark'
+        elif last and last.return_date:
+            g = last.giver
+            giver_name = ''
+            if g:
+                if (g.first_name or g.last_name):
+                    giver_name = f"{(g.first_name or '').strip()} {(g.last_name or '').strip()}".strip()
+                elif g.ldap_username:
+                    giver_name = g.ldap_username
+            if giver_name:
+                status_text = f"{giver_name} — Zurückgegeben am {last.return_date.strftime('%d.%m.%Y')}"
+            else:
+                status_text = f"Zurückgegeben am {last.return_date.strftime('%d.%m.%Y')}"
+            status_class = 'bg-info text-dark'
+
+        device_rows.append({
+            'device': d,
+            'last': last,
+            'active': active,
+            'ldap_display': ldap_display,
+            'status_text': status_text,
+            'status_class': status_class,
+        })
+
+    today = datetime.today().strftime('%Y-%m-%d')
+    return render_template('inventory_admin/index.html', device_rows=device_rows, today=today)
     today = datetime.today().strftime('%Y-%m-%d')
     return render_template('inventory_admin/index.html', devices=devices, last_handover_map=last_handover_map, active_handover_map=active_handover_map, today=today)
 
