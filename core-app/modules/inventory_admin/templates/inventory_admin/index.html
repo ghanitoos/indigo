@@ -38,9 +38,12 @@
                     <td>{{ device.model_name }}</td>
                     <td>{{ device.serial_number }}</td>
                     <td>
-                        {# Show LDAP username of the last receiver if available #}
-                        {% if last_handover_map.get(device.id) and last_handover_map.get(device.id).receiver and last_handover_map.get(device.id).receiver.ldap_username %}
-                            <code>{{ last_handover_map.get(device.id).receiver.ldap_username }}</code>
+                        {# Show LDAP username: if last handover exists and has return_date, show giver (the one who returned it), otherwise show current receiver #}
+                        {% set last_h = last_handover_map.get(device.id) %}
+                        {% if last_h and last_h.return_date and last_h.giver and last_h.giver.ldap_username %}
+                            <code>{{ last_h.giver.ldap_username }}</code>
+                        {% elif last_h and last_h.receiver and last_h.receiver.ldap_username %}
+                            <code>{{ last_h.receiver.ldap_username }}</code>
                         {% else %}
                             &mdash;
                         {% endif %}
@@ -64,25 +67,14 @@
                             <a href="{{ url_for('inventory_admin.edit_device', id=device.id) }}" class="btn btn-sm btn-outline-secondary" title="Bearbeiten">
                                 <i class="fa-solid fa-edit"></i>
                             </a>
-                            {# Disable handover if device is currently handed out (active handover) #}
-                            {% if last and not last.return_date %}
-                                <span title="Derzeit ausgegeben an {{ last.receiver.first_name }} {{ last.receiver.last_name }} seit {{ last.handover_date.strftime('%d.%m.%Y') }} — bitte zuerst 'Rückgabe vermerken'." style="display:inline-block;">
-                                    <a class="btn btn-sm btn-outline-primary disabled" aria-disabled="true" role="button" style="pointer-events:none;">
-                                        <i class="fa-solid fa-handshake"></i>
-                                    </a>
-                                </span>
-                            {% else %}
-                                {# Only allow handover for active, non-archived devices without an active handover #}
-                                {% set archived = device.inventory_number.endswith('-RET') %}
-                                {% if device.is_active and not archived %}
+                            {# Show handover button only when device is active, not archived (-RET), and available (no active handover) #}
+                            {% set archived = ('-RET' in device.inventory_number) %}
+                            {% set active = active_handover_map.get(device.id) %}
+                            {% set available = device.is_active and not archived and (not active) %}
+                            {% if available %}
                                 <a href="{{ url_for('inventory_admin.handover_device', id=device.id) }}" class="btn btn-sm btn-outline-primary" title="Übergabe">
                                     <i class="fa-solid fa-handshake"></i>
                                 </a>
-                                {% else %}
-                                <a class="btn btn-sm btn-outline-primary disabled" aria-disabled="true" role="button" style="pointer-events:none;" title="Übergabe nicht möglich">
-                                    <i class="fa-solid fa-handshake"></i>
-                                </a>
-                                {% endif %}
                             {% endif %}
                             {% if last %}
                                 <a href="{{ url_for('inventory_admin.protocol', handover_id=last.id) }}" class="btn btn-sm btn-outline-info" title="Übergabeprotokoll">
@@ -94,9 +86,12 @@
                                     </a>
                                 {% else %}
                                     {# Quick return: show preview modal and confirm to post return_no_csrf #}
-                                    <button class="btn btn-sm btn-outline-warning quick-return-btn" data-handover-id="{{ last.id }}" title="Rückgabe vermerken" onclick="openReturnPreview({{ last.id }});">
-                                        <i class="fa-solid fa-rotate-left"></i>
-                                    </button>
+                                    <form id="return-form-{{ last.id }}" method="post" action="{{ url_for('inventory_admin.return_handover_no_csrf', handover_id=last.id) }}" style="display:inline; margin:0; padding:0;" onsubmit="return confirm('Rückgabe bestätigen?');">
+                                        <input type="hidden" name="return_date" value="{{ today }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Rückgabe vermerken">
+                                            <i class="fa-solid fa-rotate-left"></i>
+                                        </button>
+                                    </form>
                                 {% endif %}
                             {% endif %}
 

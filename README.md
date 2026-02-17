@@ -61,6 +61,8 @@ http://your-server-ip:8080
 └── docker-compose.yml  # Container orchestration
 ```
 
+Note: The canonical location for modules is `core-app/modules/`. A legacy top-level `modules/` folder (previously containing integrations) has been removed to avoid duplication.
+
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md) - System architecture and design

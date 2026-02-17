@@ -22,7 +22,16 @@ def index():
     for d in devices:
         last = d.handovers.order_by(Handover.handover_date.desc()).first()
         last_handover_map[d.id] = last
-    return render_template('inventory_admin/index.html', devices=devices, last_handover_map=last_handover_map)
+    # prepare active handover mapping (if a device currently has an active handover without return)
+    active_handover_map = {}
+    for d2 in devices:
+        try:
+            active = d2.handovers.filter(Handover.return_date==None).order_by(Handover.handover_date.desc()).first()
+        except Exception:
+            active = None
+        active_handover_map[d2.id] = active
+    today = datetime.today().strftime('%Y-%m-%d')
+    return render_template('inventory_admin/index.html', devices=devices, last_handover_map=last_handover_map, active_handover_map=active_handover_map, today=today)
 
 
 @inventory_admin_bp.route('/my-devices')

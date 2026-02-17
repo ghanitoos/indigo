@@ -91,12 +91,12 @@ docker exec -it admin-panel-postgres psql -U adminuser -d adminpanel
 
 ```
 /opt/admin-panel/
-├── core-app/              # Main Flask application
+├── core-app/              # Main Flask application (canonical module location)
 │   ├── app.py            # Entry point (to be created)
 │   ├── config.py         # Configuration
 │   ├── models/           # Database models
 │   ├── auth/             # Authentication
-│   ├── modules/          # Feature modules
+│   ├── modules/          # Feature modules (use `core-app/modules/`)
 │   ├── api/              # REST API
 │   ├── templates/        # HTML templates
 │   ├── static/           # CSS, JS, images
@@ -110,6 +110,8 @@ docker exec -it admin-panel-postgres psql -U adminuser -d adminpanel
 ├── .env.example          # Environment template
 └── .gitignore           # Git ignore rules
 ```
+
+Note: An earlier duplicate `modules/` directory at the repository root has been removed. The canonical location for all modules is `core-app/modules/`.
 
 ## Coding Standards
 
@@ -210,6 +212,19 @@ def index():
 ```
 ENABLED_MODULES=dashboard,users,my_module
 ```
+
+### Module Independence and Rules
+
+- **Each module must be fully independent.** A module's routes, business logic, templates, static assets, translations and `config.json` must live inside `core-app/modules/<module_name>/`.
+- **No direct coupling:** Modules must not import or call each other directly. Any shared functionality should be provided by `core-app/utils/`, core models, or through the core API.
+- **Registration & Enablement:** Modules must implement a safe registration function in `__init__.py` and handle missing dependencies gracefully. Enable modules via `ENABLED_MODULES` and do not assume other modules are present at runtime.
+- **Translations:** Provide `translations.json` for all user-visible strings; the UI defaults to German with English as a fallback.
+- **Documentation:** Each module must include a `README.md` and `config.json`. Developer-facing comments and docstrings may be in English.
+
+### LDAP Group Permissions (development notes)
+
+- The admin UI at `/admin/group-permissions` is the authoritative place to map LDAP groups to Roles and module permissions. Tests and development should account for this flow when implementing access control.
+
 
 ## Database Management
 
