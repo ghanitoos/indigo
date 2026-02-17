@@ -50,39 +50,14 @@
                     </td>
                     <td>
                         {% set last = last_handover_map.get(device.id) %}
-                            {% if last_h and last_h.return_date and last_h.giver %}
-                                {% set g = last_h.giver %}
-                                {% if g.first_name or g.last_name %}
-                                    <code>{{ g.first_name }} {{ g.last_name }}</code>
-                                {% elif g.ldap_username %}
-                                    <code>{{ g.ldap_username }}</code>
-                                {% else %}
-                                    &mdash;
-                                {% endif %}
-                            {% elif last_h and last_h.receiver %}
-                                {% set r = last_h.receiver %}
-                                {% if r.first_name or r.last_name %}
-                                    <code>{{ r.first_name }} {{ r.last_name }}</code>
-                                {% elif r.ldap_username %}
-                                    <code>{{ r.ldap_username }}</code>
-                                {% else %}
-                                    &mdash;
-                                {% endif %}
+                        {% if not device.is_active %}
+                            <span class="badge bg-danger">Ausgemustert</span>
                         {% elif not last %}
                             <span class="badge bg-secondary">Verfügbar</span>
                         {% elif last and not last.return_date %}
                             <span class="badge bg-warning text-dark">Ausgegeben an {{ last.receiver.first_name }} {{ last.receiver.last_name }}</span>
                         {% elif last and last.return_date %}
-                                {# Show the name of the person who returned (giver) if available, else fallback to ldap username or dash #}
-                                {% set giver = last.giver %}
-                                <span class="badge bg-info text-dark">
-                                    {% if giver and (giver.first_name or giver.last_name) %}
-                                        {{ giver.first_name }} {{ giver.last_name }} —
-                                    {% elif giver and giver.ldap_username %}
-                                        {{ giver.ldap_username }} —
-                                    {% endif %}
-                                    Zurückgegeben am {{ last.return_date.strftime('%d.%m.%Y') }}
-                                </span>
+                            <span class="badge bg-info text-dark">Zurückgegeben am {{ last.return_date.strftime('%d.%m.%Y') }}</span>
                         {% else %}
                             <span class="badge bg-secondary">Unbekannt</span>
                         {% endif %}
