@@ -10,6 +10,7 @@ from . import admin_bp
 from .forms import RoleForm, UserRoleForm
 import os, json
 from werkzeug.utils import secure_filename
+from flask_wtf.csrf import generate_csrf
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'static', 'uploads', 'print_templates')
 DATA_FILE = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'print_templates.json')
@@ -245,4 +246,7 @@ def print_templates():
     if data.get('footer'):
         footer_url = url_for('static', filename=data['footer'])
 
-    return render_template('admin/print_templates.html', header_url=header_url, footer_url=footer_url, notes=notes)
+    # Generate CSRF token for the form
+    csrf_token = generate_csrf()
+
+    return render_template('admin/print_templates.html', header_url=header_url, footer_url=footer_url, notes=notes, csrf_token=csrf_token)
