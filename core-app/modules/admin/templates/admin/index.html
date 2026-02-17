@@ -4,30 +4,26 @@
 <div class="container">
     <h1>Administration</h1>
     <div class="row mt-4">
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="card mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">Manage Roles</h5>
-                    <p class="card-text">Create and edit roles and permissions.</p>
-                    <a href="{{ url_for('admin.roles') }}" class="btn btn-primary">Go to Roles</a>
+                    <h5 class="card-title">Permissions</h5>
+                    <p class="card-text">Manage roles, users and group permissions in one place.</p>
+                    <div class="d-flex flex-column">
+                        <a href="{{ url_for('admin.roles') }}" class="btn btn-outline-primary mb-2 text-start">Manage Roles — Create and edit roles and permissions</a>
+                        <a href="{{ url_for('admin.users') }}" class="btn btn-outline-primary mb-2 text-start">Manage Users — Assign roles to users</a>
+                        <a href="{{ url_for('admin.group_permissions') }}" class="btn btn-outline-primary text-start">Manage Group Permissions — Manage LDAP group access to modules</a>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+
+        <div class="col-md-6">
             <div class="card mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">Manage Users</h5>
-                    <p class="card-text">Assign roles to users.</p>
-                    <a href="{{ url_for('admin.users') }}" class="btn btn-primary">Go to Users</a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Manage Group Permissions</h5>
-                    <p class="card-text">Manage LDAP group access to modules.</p>
-                    <a href="{{ url_for('admin.group_permissions') }}" class="btn btn-primary">Go to Groups</a>
+                    <h5 class="card-title">Print Templates</h5>
+                    <p class="card-text">Configure header and footer images used for printing documents like Rückgabeprotokoll and Übergabeprotokoll. You can upload a header and footer image and set recommended sizes.</p>
+                    <a href="{{ url_for('admin.print_templates') }}" class="btn btn-primary">Go to Print Templates</a>
                 </div>
             </div>
         </div>

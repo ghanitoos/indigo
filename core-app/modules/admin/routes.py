@@ -8,6 +8,27 @@ from models.user import User
 from auth.permissions import require_role, require_permission
 from . import admin_bp
 from .forms import RoleForm, UserRoleForm
+import os, json
+from werkzeug.utils import secure_filename
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'static', 'uploads', 'print_templates')
+DATA_FILE = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'print_templates.json')
+
+def ensure_storage():
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    data_dir = os.path.dirname(DATA_FILE)
+    os.makedirs(data_dir, exist_ok=True)
+
+def load_print_templates():
+    try:
+        with open(DATA_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def save_print_templates(data):
+    with open(DATA_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 @admin_bp.route('/')
 @require_role('admin')
@@ -181,3 +202,47 @@ def delete_group(role_id):
     db.session.delete(role)
     db.session.commit()
     return jsonify({'status': 'success', 'message': 'Group deleted'})
+
+
+@admin_bp.route('/print-templates', methods=['GET', 'POST'])
+@require_role('admin')
+def print_templates():
+    """Manage header/footer images used for printing."""
+    ensure_storage()
+    data = load_print_templates()
+
+    if request.method == 'POST':
+        header = request.files.get('header_image')
+        footer = request.files.get('footer_image')
+        notes = request.form.get('notes', '')
+
+        updated = False
+        if header and header.filename:
+            filename = secure_filename(header.filename)
+            target = os.path.join(UPLOAD_DIR, 'header_' + filename)
+            header.save(target)
+            data['header'] = os.path.relpath(target, os.path.join(os.path.dirname(__file__), '..', '..', 'static')).replace('\\', '/')
+            updated = True
+
+        if footer and footer.filename:
+            filename = secure_filename(footer.filename)
+            target = os.path.join(UPLOAD_DIR, 'footer_' + filename)
+            footer.save(target)
+            data['footer'] = os.path.relpath(target, os.path.join(os.path.dirname(__file__), '..', '..', 'static')).replace('\\', '/')
+            updated = True
+
+        data['notes'] = notes
+        if updated or notes is not None:
+            save_print_templates(data)
+            flash('Print templates updated.', 'success')
+        return redirect(url_for('admin.print_templates'))
+
+    header_url = None
+    footer_url = None
+    notes = data.get('notes') if data else None
+    if data.get('header'):
+        header_url = url_for('static', filename=data['header'])
+    if data.get('footer'):
+        footer_url = url_for('static', filename=data['footer'])
+
+    return render_template('admin/print_templates.html', header_url=header_url, footer_url=footer_url, notes=notes)
