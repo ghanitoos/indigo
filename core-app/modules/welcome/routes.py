@@ -11,7 +11,7 @@ except Exception:
     User = None
 
 
-@welcome_bp.route('/welcome/new', methods=['GET'])
+@welcome_bp.route('/', methods=['GET'])
 @login_required
 @require_permission('welcome.access')
 def new_welcome():
@@ -20,7 +20,7 @@ def new_welcome():
     return render_template('welcome/new.html')
 
 
-@welcome_bp.route('/welcome/lookup', methods=['GET'])
+@welcome_bp.route('/lookup', methods=['GET'])
 @login_required
 @require_permission('welcome.access')
 def lookup_user():
@@ -55,7 +55,7 @@ def lookup_user():
 
 
 # Utility route to preview generated passwords (for testing)
-@welcome_bp.route('/welcome/generate', methods=['POST'])
+@welcome_bp.route('/generate', methods=['POST'])
 @login_required
 @require_permission('welcome.access')
 def generate():

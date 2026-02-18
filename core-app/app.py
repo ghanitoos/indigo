@@ -45,6 +45,12 @@ def create_app(config_name=None):
     app.register_blueprint(my_devices_bp)
     app.register_blueprint(inventory_admin_bp)
     app.register_blueprint(profile_bp, url_prefix='/profile')
+    # Register welcome module if present
+    try:
+        from modules.welcome import welcome_bp
+        app.register_blueprint(welcome_bp, url_prefix='/welcome')
+    except Exception:
+        pass
     
     # Main Blueprint (Placeholder for Dashboard)
     main_bp = Blueprint('main', __name__)
