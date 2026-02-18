@@ -2,5 +2,11 @@
   "name": "welcome",
   "display_name": "Willkommensseite",
   "version": "0.1",
-  "permissions": ["welcome.access"]
+  "permissions": [
+    {
+      "name": "welcome.access",
+      "display_name": "Access Willkommensseite",
+      "description": "Allow access to welcome module"
+    }
+  ]
 }
