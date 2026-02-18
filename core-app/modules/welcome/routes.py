@@ -11,6 +11,31 @@ except Exception:
     User = None
 
 
+def _user_to_dict(u):
+    if not u:
+        return None
+    first = getattr(u, 'first_name', None) or getattr(u, 'given_name', None) or getattr(u, 'firstname', None) or getattr(u, 'name', None) or ''
+    last = getattr(u, 'last_name', None) or getattr(u, 'sn', None) or getattr(u, 'lastname', None) or ''
+    email = getattr(u, 'email', None) or getattr(u, 'mail', None) or ''
+    username = getattr(u, 'username', None) or getattr(u, 'uid', None) or (email.split('@')[0] if email else '')
+    # If display_name exists and first/last not present, try to split it
+    if not first and not last:
+        disp = getattr(u, 'display_name', None) or getattr(u, 'displayName', None) or None
+        if disp:
+            parts = disp.split()
+            if len(parts) >= 2:
+                first = parts[0]
+                last = ' '.join(parts[1:])
+            elif len(parts) == 1:
+                first = parts[0]
+    return {
+        'username': username,
+        'first_name': first,
+        'last_name': last,
+        'email': email,
+    }
+
+
 @welcome_bp.route('/', methods=['GET'])
 @login_required
 @require_permission('welcome.access')
@@ -35,23 +60,82 @@ def lookup_user():
     if User:
         u = User.query.filter((User.username == q) | (User.email == q)).first()
         if u:
-            return jsonify({
-                'username': u.username,
-                'first_name': u.first_name,
-                'last_name': u.last_name,
-                'email': u.email,
-            })
+            ud = _user_to_dict(u)
+            if ud:
+                return jsonify(ud)
 
     # Fallback: minimal LDAP search if helper exists
     try:
-        from auth.ldap_client import ldap_search_user
-        res = ldap_search_user(q)
-        if res:
-            return jsonify(res)
+        from auth.ldap_connector import LDAPConnector
+        ldap = LDAPConnector()
+        info = ldap.get_user_info(q)
+        if info:
+            # normalize keys to match expected structure
+            return jsonify({
+                'username': info.get('username') or info.get('ldap_username') or q,
+                'first_name': info.get('first_name') or info.get('display_name','').split(' ')[0] if info.get('display_name') else '',
+                'last_name': info.get('last_name') or ' '.join(info.get('display_name','').split(' ')[1:]) if info.get('display_name') else '',
+                'email': info.get('email') or ''
+            })
     except Exception:
         pass
 
     return jsonify({'error': 'not found'}), 404
+
+
+@welcome_bp.route('/search', methods=['GET'])
+@login_required
+@require_permission('welcome.access')
+def search_users():
+    """Return a list of user suggestions matching the query prefix.
+    Query param: q (partial username/email)
+    Returns: JSON array of {username, first_name, last_name, email}
+    """
+    q = request.args.get('q', '').strip()
+    if not q or len(q) < 1:
+        return jsonify([])
+
+    results = []
+    # Try DB model prefix search
+    if User:
+        # Use ilike for case-insensitive startswith
+        try:
+            users = User.query.filter((User.username.ilike(f"{q}%")) | (User.email.ilike(f"{q}%"))).limit(20).all()
+            for u in users:
+                ud = _user_to_dict(u)
+                if ud:
+                    results.append(ud)
+        except Exception:
+            # Fall through to LDAP fallback
+            results = []
+
+    # If no DB results, try LDAP helper which may return multiple matches
+    if not results:
+        try:
+            from auth.ldap_connector import LDAPConnector
+            ldap = LDAPConnector()
+            ldap_res = ldap.search_users(q)
+            for r in ldap_res:
+                uname = r.get('ldap_username') or r.get('username') or ''
+                # try to enrich with email by calling get_user_info
+                email = ''
+                try:
+                    info = ldap.get_user_info(uname) if uname else None
+                    if info:
+                        email = info.get('email') or ''
+                except Exception:
+                    email = ''
+
+                results.append({
+                    'username': uname,
+                    'first_name': r.get('first_name') or r.get('display_name', '').split(' ')[0] or '',
+                    'last_name': r.get('last_name') or ' '.join(r.get('display_name', '').split(' ')[1:]) or '',
+                    'email': email
+                })
+        except Exception:
+            pass
+
+    return jsonify(results)
 
 
 # Utility route to preview generated passwords (for testing)

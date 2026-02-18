@@ -5,10 +5,8 @@
   <h3>Willkommensseite - Neuer Mitarbeiter</h3>
   <div class="mb-3">
     <label for="ldap-q" class="form-label">Suche (username oder email)</label>
-    <input id="ldap-q" class="form-control" placeholder="z.B. jthiede" />
-  </div>
-  <div class="mb-3">
-    <button id="btn-lookup" class="btn btn-primary">Suche</button>
+    <input id="ldap-q" class="form-control" placeholder="z.B. jthiede" autocomplete="off" />
+    <div id="ldap-suggestions" class="list-group mt-1" style="position:relative; z-index:2000;"></div>
   </div>
 
   <form id="welcome-form">
@@ -53,21 +51,53 @@
 
 {% block extra_js %}
 <script>
-document.getElementById('btn-lookup').addEventListener('click', function(){
-  var q = document.getElementById('ldap-q').value.trim();
-  if (!q) return alert('Bitte Suchbegriff eingeben');
-  fetch('/welcome/lookup?q=' + encodeURIComponent(q)).then(function(r){
-    if (!r.ok) return r.json().then(function(j){ alert(j.error || 'not found'); });
-    return r.json();
-  }).then(function(data){
-    if (!data) return;
-    document.getElementById('first_name').value = data.first_name || '';
-    document.getElementById('last_name').value = data.last_name || '';
-    document.getElementById('email').value = data.email || '';
-    // username stored for generation
-    window.__welcome_username = data.username || q;
-  }).catch(function(){ alert('Fehler beim Lookup'); });
-});
+// Autocomplete: debounce input and query /welcome/search for suggestions
+;(function(){
+  var inp = document.getElementById('ldap-q');
+  var list = document.getElementById('ldap-suggestions');
+  var timer = null;
+
+  function clearList(){ list.innerHTML = ''; }
+
+  function renderSuggestions(items){
+    clearList();
+    if (!items || items.length === 0) return;
+    items.slice(0,20).forEach(function(it){
+      var a = document.createElement('button');
+      a.type = 'button';
+      a.className = 'list-group-item list-group-item-action';
+      a.textContent = (it.username || '') + (it.email ? ' — ' + it.email : '');
+      a.dataset.username = it.username || '';
+      a.dataset.first_name = it.first_name || '';
+      a.dataset.last_name = it.last_name || '';
+      a.dataset.email = it.email || '';
+      a.addEventListener('click', function(){
+        document.getElementById('first_name').value = this.dataset.first_name;
+        document.getElementById('last_name').value = this.dataset.last_name;
+        document.getElementById('email').value = this.dataset.email;
+        window.__welcome_username = this.dataset.username || (this.dataset.email || '').split('@')[0];
+        inp.value = this.dataset.username || this.dataset.email || inp.value;
+        clearList();
+      });
+      list.appendChild(a);
+    });
+  }
+
+  inp.addEventListener('input', function(){
+    var q = inp.value.trim();
+    if (timer) clearTimeout(timer);
+    if (!q || q.length < 2) { clearList(); return; }
+    timer = setTimeout(function(){
+      fetch('/welcome/search?q=' + encodeURIComponent(q)).then(function(r){
+        if (!r.ok) return [];
+        return r.json();
+      }).then(function(data){ renderSuggestions(data || []); }).catch(function(){ clearList(); });
+    }, 250);
+  });
+
+  // close suggestions when clicking outside
+  document.addEventListener('click', function(ev){ if (!inp.contains(ev.target) && !list.contains(ev.target)) clearList(); });
+})();
 
 document.getElementById('btn-generate').addEventListener('click', function(){
   var username = window.__welcome_username || document.getElementById('email').value.split('@')[0] || '';
