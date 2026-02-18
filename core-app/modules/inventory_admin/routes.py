@@ -11,6 +11,10 @@ from datetime import date as _date
 import os
 from extensions import db
 from extensions import csrf
+from ..admin.routes import load_print_templates
+from flask import Response
+import traceback
+from utils.weasy_pdf import generate_pdf_from_html_weasy
 
 @inventory_admin_bp.route('/')
 @login_required
@@ -527,17 +531,141 @@ def return_handover_no_csrf(handover_id):
 @require_permission('inventory_admin.access')
 def protocol(handover_id):
     handover = Handover.query.get_or_404(handover_id)
-    upload_dir = current_app.config.get('INVENTORY_UPLOAD_FOLDER') or os.path.join(os.getcwd(), 'data', 'uploads')
-    logo_url = None
-    # prefer png/jpg if exists
-    for ext in ('.png', '.jpg', '.jpeg', '.svg'):
-        p = os.path.join(upload_dir, 'logo' + ext)
-        if os.path.exists(p):
-            logo_url = url_for('inventory_admin.uploaded_file', filename='logo' + ext)
-            break
+    # header/footer selection handled by print templates; legacy logo removed
 
-    # default: show handover protocol
-    return render_template('inventory_admin/protocol.html', handover=handover, logo_url=logo_url, is_return=False)
+    # allow selecting a print template via query parameter ?tpl_id=<id>
+    tpl_id = request.args.get('tpl_id')
+    header_url = None
+    footer_url = None
+    templates = []
+    try:
+        templates = load_print_templates() or []
+        selected = None
+        if tpl_id:
+            for t in templates:
+                if t.get('id') == tpl_id:
+                    selected = t
+                    break
+        # if no tpl_id provided, no template selected (user can choose in UI)
+        if selected:
+            header_url = selected.get('header_url') or (url_for('static', filename=selected.get('header')) if selected.get('header') else None)
+            footer_url = selected.get('footer_url') or (url_for('static', filename=selected.get('footer')) if selected.get('footer') else None)
+            header_height = selected.get('header_height_mm', 30)
+            footer_height = selected.get('footer_height_mm', 30)
+            # convert empty/None widths to None
+            header_width = selected.get('header_width_mm') if selected.get('header_width_mm') not in (None, '') else None
+            footer_width = selected.get('footer_width_mm') if selected.get('footer_width_mm') not in (None, '') else None
+            header_width = selected.get('header_width_mm')
+            footer_width = selected.get('footer_width_mm')
+            header_position = selected.get('header_position', 'right')
+            footer_position = selected.get('footer_position', 'center')
+            header_is_background = selected.get('header_is_background', True)
+            footer_is_background = selected.get('footer_is_background', True)
+            header_constrain = selected.get('header_constrain', True)
+            footer_constrain = selected.get('footer_constrain', True)
+            header_constrain = selected.get('header_constrain', True)
+            footer_constrain = selected.get('footer_constrain', True)
+    except Exception:
+        header_url = None
+        footer_url = None
+
+    try:
+        current_app.logger.info(f"protocol render handover_id={handover_id} tpl_id={tpl_id} header_height={locals().get('header_height')} footer_height={locals().get('footer_height')} header_pos={locals().get('header_position')} footer_pos={locals().get('footer_position')} header_url={header_url} footer_url={footer_url}")
+    except Exception:
+        pass
+    return render_template('inventory_admin/protocol.html', handover=handover, is_return=False, header_url=header_url, footer_url=footer_url, templates=templates,
+                           header_height=locals().get('header_height'), footer_height=locals().get('footer_height'),
+                           header_width=locals().get('header_width'), footer_width=locals().get('footer_width'),
+                           header_position=locals().get('header_position'), footer_position=locals().get('footer_position'),
+                           header_is_background=locals().get('header_is_background'), footer_is_background=locals().get('footer_is_background'),
+                           header_constrain=locals().get('header_constrain'), footer_constrain=locals().get('footer_constrain'))
+
+
+@inventory_admin_bp.route('/handovers/<int:handover_id>/protocol_pdf')
+@login_required
+@require_permission('inventory_admin.access')
+def protocol_pdf(handover_id):
+    """Render the protocol page server-side with Playwright and return a PDF.
+    Falls back with clear error if Playwright is not installed.
+    """
+    handover = Handover.query.get_or_404(handover_id)
+    tpl_id = request.args.get('tpl_id')
+
+    # reuse logic from protocol() to collect template data
+    header_url = None
+    footer_url = None
+    templates = []
+    header_height = footer_height = None
+    header_width = footer_width = None
+    header_position = footer_position = None
+    header_is_background = footer_is_background = None
+    try:
+        templates = load_print_templates() or []
+        selected = None
+        if tpl_id:
+            for t in templates:
+                if t.get('id') == tpl_id:
+                    selected = t
+                    break
+        if selected:
+            header_url = selected.get('header_url') or (url_for('static', filename=selected.get('header')) if selected.get('header') else None)
+            footer_url = selected.get('footer_url') or (url_for('static', filename=selected.get('footer')) if selected.get('footer') else None)
+            header_height = selected.get('header_height_mm', 30)
+            footer_height = selected.get('footer_height_mm', 30)
+            header_width = selected.get('header_width_mm') if selected.get('header_width_mm') not in (None, '') else None
+            footer_width = selected.get('footer_width_mm') if selected.get('footer_width_mm') not in (None, '') else None
+            header_position = selected.get('header_position', 'right')
+            footer_position = selected.get('footer_position', 'center')
+            header_is_background = selected.get('header_is_background', True)
+            footer_is_background = selected.get('footer_is_background', True)
+            header_constrain = selected.get('header_constrain', True)
+            footer_constrain = selected.get('footer_constrain', True)
+            header_constrain = selected.get('header_constrain', True)
+            footer_constrain = selected.get('footer_constrain', True)
+    except Exception:
+        pass
+
+    is_return = request.args.get('is_return') in ('1', 'true', 'True')
+    # Render HTML string with proper absolute base URL so static assets resolve
+    try:
+        html = render_template('inventory_admin/protocol.html', handover=handover, is_return=is_return, header_url=header_url, footer_url=footer_url, templates=templates,
+                       header_height=header_height, footer_height=footer_height,
+                       header_width=header_width, footer_width=footer_width,
+                       header_position=header_position, footer_position=footer_position,
+                       header_is_background=header_is_background, footer_is_background=footer_is_background,
+                       header_constrain=header_constrain, footer_constrain=footer_constrain)
+
+        # inject a <base> tag so relative static URLs resolve when Playwright renders
+        if '<head>' in html:
+            html = html.replace('<head>', f"<head><base href='{request.host_url}'>")
+
+        # Compute PDF margins from template header/footer sizes so fixed
+        # header/footer elements are not clipped. Apply a small safety offset
+        # similar to the template's print-time offsets.
+        try:
+            def _mm(v, default):
+                if v is None:
+                    return float(default)
+                return float(v)
+            safety_top = 12.0
+            safety_bottom = 8.0
+            top_mm = max(_mm(header_height, 30.0) + safety_top, 20.0)
+            bottom_mm = max(_mm(footer_height, 30.0) + safety_bottom, 20.0)
+        except Exception:
+            top_mm = 20.0
+            bottom_mm = 20.0
+
+        margins = {"top": f"{top_mm}mm", "bottom": f"{bottom_mm}mm", "left": "12mm", "right": "12mm"}
+        try:
+            pdf_bytes = generate_pdf_from_html_weasy(html, base_url=request.host_url, margins=margins)
+        except RuntimeError as re:
+            current_app.logger.error('WeasyPrint/runtime PDF error: %s', str(re))
+            return (f"PDF generation error: {str(re)}", 500)
+
+        return Response(pdf_bytes, mimetype='application/pdf', headers={"Content-Disposition": f"inline; filename=protocol-{handover_id}.pdf"})
+    except Exception:
+        current_app.logger.error('Playwright PDF generation failed:\n' + traceback.format_exc())
+        return ("PDF generation failed on server (check logs).", 500)
 
 
 @inventory_admin_bp.route('/handovers/<int:handover_id>/protocol_return')
@@ -549,15 +677,45 @@ def protocol_return(handover_id):
     and be saved/printed with a different meaning.
     """
     handover = Handover.query.get_or_404(handover_id)
-    upload_dir = current_app.config.get('INVENTORY_UPLOAD_FOLDER') or os.path.join(os.getcwd(), 'data', 'uploads')
-    logo_url = None
-    for ext in ('.png', '.jpg', '.jpeg', '.svg'):
-        p = os.path.join(upload_dir, 'logo' + ext)
-        if os.path.exists(p):
-            logo_url = url_for('inventory_admin.uploaded_file', filename='logo' + ext)
-            break
+    # legacy logo handling removed
 
-    return render_template('inventory_admin/protocol.html', handover=handover, logo_url=logo_url, is_return=True)
+    tpl_id = request.args.get('tpl_id')
+    header_url = None
+    footer_url = None
+    templates = []
+    try:
+        templates = load_print_templates() or []
+        selected = None
+        if tpl_id:
+            for t in templates:
+                if t.get('id') == tpl_id:
+                    selected = t
+                    break
+        if selected:
+            header_url = selected.get('header_url') or (url_for('static', filename=selected.get('header')) if selected.get('header') else None)
+            footer_url = selected.get('footer_url') or (url_for('static', filename=selected.get('footer')) if selected.get('footer') else None)
+            header_height = selected.get('header_height_mm', 30)
+            footer_height = selected.get('footer_height_mm', 30)
+            header_width = selected.get('header_width_mm') if selected.get('header_width_mm') not in (None, '') else None
+            footer_width = selected.get('footer_width_mm') if selected.get('footer_width_mm') not in (None, '') else None
+            header_position = selected.get('header_position', 'right')
+            footer_position = selected.get('footer_position', 'center')
+            header_is_background = selected.get('header_is_background', True)
+            footer_is_background = selected.get('footer_is_background', True)
+    except Exception:
+        header_url = None
+        footer_url = None
+
+    try:
+        current_app.logger.info(f"protocol_return render handover_id={handover_id} tpl_id={tpl_id} header_height={locals().get('header_height')} footer_height={locals().get('footer_height')} header_width={locals().get('header_width')} footer_width={locals().get('footer_width')} header_pos={locals().get('header_position')} footer_pos={locals().get('footer_position')} header_url={header_url} footer_url={footer_url}")
+    except Exception:
+        pass
+    return render_template('inventory_admin/protocol.html', handover=handover, is_return=True, header_url=header_url, footer_url=footer_url, templates=templates,
+                           header_height=locals().get('header_height'), footer_height=locals().get('footer_height'),
+                           header_width=locals().get('header_width'), footer_width=locals().get('footer_width'),
+                           header_position=locals().get('header_position'), footer_position=locals().get('footer_position'),
+                           header_is_background=locals().get('header_is_background'), footer_is_background=locals().get('footer_is_background'),
+                           header_constrain=locals().get('header_constrain'), footer_constrain=locals().get('footer_constrain'))
 
 
 @inventory_admin_bp.route('/<int:id>/delete', methods=['POST'])

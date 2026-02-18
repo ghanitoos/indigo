@@ -10,3 +10,5 @@ Flask-WTF==1.2.1
 Pillow==10.2.0
 email-validator==2.1.0
 gunicorn==21.2.0
+playwright==1.58.0
+WeasyPrint

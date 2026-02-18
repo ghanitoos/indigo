@@ -1,25 +1,40 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4 protocol-document">
-  <div class="protocol-header">
-    <div class="header-left"></div>
-    <div class="header-center">
-      <!-- title is rendered below the header to ensure visibility under the logo -->
-    </div>
-    <div class="header-right">
-      {% if logo_url %}
-        <img src="{{ logo_url }}" alt="Logo" class="logo">
-      {% else %}
-        <div class="logo-placeholder">Logo</div>
-      {% endif %}
-      <div class="logo-date">{{ handover.handover_date.strftime('%d.%m.%Y') }}</div>
-    </div>
+{# add a small safety offset to account for browser print UI header lines #}
+{% set _safety_top = 12 %}
+{% set _safety_bottom = 8 %}
+{% set _footer_gap = 8 %} {# extra gap (mm) between content and footer on printed page #}
+{# place fixed header/footer outside the main content container to avoid clipping by container styles #}
+{% if header_url %}
+  {% set _pos = (header_position or 'center') %}
+  {% set _jc = {'left':'flex-start','center':'center','right':'flex-end'}[_pos] %}
+  <div class="print-header-fixed {% if not header_is_background %}print-header-foreground{% endif %}" aria-hidden="false" style="height: {{ header_height or 30 }}mm; display:flex; align-items:center; justify-content: {{ _jc }};">
+    <img src="{{ header_url }}" alt="Header"
+         style="{% if header_width %}width: {{ header_width }}mm;{% else %}width: calc(210mm + 40mm);{% endif %} max-height: {{ header_height or 30 }}mm; height: auto; object-fit: contain; object-position: center; display:block; {% if header_constrain %}max-width: calc(210mm - 40mm);{% endif %}">
   </div>
+{% endif %}
+
+<div class="container mt-4 protocol-document" style="margin-top: {{ (header_height or 30) + _safety_top }}mm; margin-bottom: {{ (footer_height or 30) + _safety_bottom + _footer_gap }}mm; position: relative; z-index:1;">
+  <div class="template-selector no-print" style="margin-bottom:12px;">
+    <form method="get" id="tpl-form" class="d-flex gap-2 align-items-center">
+      <label class="me-2 mb-0">Druckvorlage:</label>
+      <select name="tpl_id" id="tpl-select" class="form-select form-select-sm" style="max-width:360px;">
+        <option value="">-- Keine --</option>
+        {% for t in (templates or []) %}
+          <option value="{{ t.id }}" {% if request.args.get('tpl_id') == t.id %}selected{% endif %}>{{ t.name }}</option>
+        {% endfor %}
+      </select>
+      {# Apply/Reset buttons removed: selection now auto-applies and is persisted in localStorage #}
+    </form>
+  </div>
+
+  {# header is rendered above as a fixed element; avoid duplicating it here #}
 
   <!-- Centered title one line below the logo -->
   <div class="protocol-title-row">
     <div class="protocol-title-centered">{% if is_return %}Rückgabeprotokoll{% else %}Übergabeprotokoll{% endif %}</div>
+    <div style="text-align:right; margin-top:8mm; margin-bottom:6mm; font-size:11pt;">{{ handover.handover_date.strftime('%d.%m.%Y') }}</div>
   </div>
 
   <div class="mt-1 proto-topline">
@@ -80,15 +95,119 @@
   </div>
 
   <div class="mt-3 no-print">
-    <button class="btn btn-primary" onclick="window.print()">Drucken / Als PDF</button>
+    <!-- Client-side print only: wait for header/footer images to load before printing -->
+    <button id="btn-print" class="btn btn-primary">Drucken</button>
     {% if not handover.return_date %}
       <a class="btn btn-secondary" href="{{ url_for('inventory_admin.return_handover', handover_id=handover.id) }}">Rückgabe vermerken</a>
     {% endif %}
     <a class="btn btn-link" href="{{ url_for('inventory_admin.index') }}">Zurück</a>
   </div>
+
+  </div>
 </div>
+
+{# New footer block: placed outside the content container and explicitly
+   anchored 20mm above the physical page bottom so it appears inside the
+   A4 printable area (the document padding is 20mm). Uses exact A4 width. #}
+{% if footer_url %}
+  {% set _fpos = (footer_position or 'center') %}
+  {% set _fjc = {'left':'flex-start','center':'center','right':'flex-end'}[_fpos] %}
+  <div class="print-footer-fixed {% if not footer_is_background %}print-footer-foreground{% endif %}" aria-hidden="false" style="height: {{ footer_height or 30 }}mm; display:flex; align-items:center; justify-content: {{ _fjc }}; left:50%; transform:translateX(-50%); width:210mm; bottom:20mm; position:fixed;">
+    <img src="{{ footer_url }}" alt="Footer"
+         style="width:100%; max-height: {{ footer_height or 30 }}mm; height: auto; object-fit: contain; object-position: center; display:block;">
+  </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/protocol.css') }}">
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  try {
+    // Apply explicit sizes with !important so print engines respect them
+    var hdr = document.querySelector('.print-header-fixed');
+    if (hdr) {
+      hdr.style.setProperty('height', '{{ header_height or 30 }}mm', 'important');
+      var img = hdr.querySelector('img');
+      if (img) {
+        img.style.setProperty('max-height', '{{ header_height or 30 }}mm', 'important');
+        img.style.setProperty('height', 'auto', 'important');
+        {% if header_width %}
+        img.style.setProperty('width', '{{ header_width }}mm', 'important');
+        {% else %}
+        img.style.setProperty('width', 'calc(210mm + 40mm)', 'important');
+        {% endif %}
+        img.style.setProperty('object-fit', 'contain', 'important');
+        // set container justify-content according to position
+        var pos = '{{ header_position or 'center' }}';
+        var jc = (pos === 'left') ? 'flex-start' : (pos === 'right') ? 'flex-end' : 'center';
+        hdr.style.setProperty('justify-content', jc, 'important');
+        img.loading = 'eager';
+      }
+    }
+    var ftr = document.querySelector('.print-footer-fixed');
+    if (ftr) {
+      ftr.style.setProperty('height', '{{ footer_height or 30 }}mm', 'important');
+      // ensure footer sits inside A4 width
+      ftr.style.setProperty('width', '210mm', 'important');
+      var img2 = ftr.querySelector('img');
+      if (img2) {
+        img2.style.setProperty('max-height', '{{ footer_height or 30 }}mm', 'important');
+        img2.style.setProperty('height', 'auto', 'important');
+        img2.style.setProperty('width', '100%', 'important');
+        img2.style.setProperty('object-fit', 'contain', 'important');
+        var fpos = '{{ footer_position or 'center' }}';
+        var fjc = (fpos === 'left') ? 'flex-start' : (fpos === 'right') ? 'flex-end' : 'center';
+        ftr.style.setProperty('justify-content', fjc, 'important');
+        ftr.style.setProperty('bottom', '20mm', 'important');
+        img2.loading = 'eager';
+      }
+    }
+
+    // intercept the print button to wait for header/footer images to load
+    var printBtn = document.querySelector('#btn-print') || document.querySelector('.no-print button');
+    if (printBtn) {
+      printBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        var imgs = document.querySelectorAll('.print-header-fixed img, .print-footer-fixed img');
+        var pending = Array.from(imgs).filter(function(i){ return !i.complete; });
+        if (pending.length === 0) { window.print(); return; }
+        var loaded = 0;
+        pending.forEach(function(im){
+          im.addEventListener('load', function(){ loaded++; if (loaded === pending.length) window.print(); });
+          im.addEventListener('error', function(){ loaded++; if (loaded === pending.length) window.print(); });
+        });
+      });
+    }
+
+    // Persist and auto-apply selected Druckvorlage (remember last choice)
+    try {
+      var tplSelect = document.getElementById('tpl-select');
+      var tplForm = document.getElementById('tpl-form');
+      var stored = null;
+      try { stored = localStorage.getItem('inventory_last_tpl_id') || ''; } catch(e) { stored = ''; }
+      var current = {{ (request.args.get('tpl_id') or '')|tojson }};
+      if (tplSelect) {
+        // If we have a stored value different from current and option exists, apply it
+        if (stored && stored !== current) {
+          var opt = tplSelect.querySelector('option[value="' + stored + '"]');
+          if (opt) {
+            tplSelect.value = stored;
+            // submit to apply stored template
+            if (tplForm) tplForm.submit();
+          }
+        }
+        tplSelect.addEventListener('change', function(){
+          var v = tplSelect.value || '';
+          try { localStorage.setItem('inventory_last_tpl_id', v); } catch(e){}
+          if (tplForm) tplForm.submit();
+        });
+      }
+    } catch(e) { console.log('tpl persistence error', e); }
+  } catch(err) { console.log('print template script error', err); }
+});
+</script>
 {% endblock %}

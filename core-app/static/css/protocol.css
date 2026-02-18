@@ -30,16 +30,79 @@
 
 /* Hide site chrome when printing */
 @media print {
-  @page { size: A4; margin: 20mm; }
+  /* Use zero page-margin and control margins via the document padding so
+     browsers don't add their own header/footer area which shifts the layout. */
+  @page { size: A4; margin: 0mm; }
   body { background: #fff !important; color: #000 !important; font-family: 'Times New Roman', Times, serif; font-size: 12pt; }
   header, nav, .flash-messages, .btn, .btn-link, .dropdown, footer { display:none !important; }
-  .protocol-document { max-width: 190mm; margin: 0; padding: 0; border: none; }
+  /* Reserve a printable page padding (acts like the former @page margin). */
+  .protocol-document { max-width: 190mm; margin: 0; padding: 20mm; border: none; box-sizing: border-box; }
   .container, .card { box-shadow: none !important; border: none !important; }
   .protocol-header { padding: 0 0 12px 0; }
   .protocol-title { font-size: 20pt; margin-bottom: 6mm; font-family: 'Times New Roman', Times, serif; }
   .protocol-meta, .protocol-table { font-size: 12pt; }
   .signature-block { page-break-inside: avoid; }
   .no-print { display:none !important; }
+}
+
+/* Fixed header/footer for print: center at A4 width and repeat on every printed page.
+   Use measured image aspect (≈990×141px => ~30mm height) so uploaded headers/footers
+   are not excessively cropped or oversized. Reserve slightly larger margins to avoid
+   overlap with main content. */
+@media print {
+  /* Allow header/footer to extend beyond the page margin so they visually
+     reach the paper edges on both left and right (full-bleed). We assume the
+     @page margin is 20mm; compute a bleed width = 210mm + 2*20mm. This makes
+     both left and right sides preserved when cropping occurs. */
+  .print-header-fixed,
+  .print-footer-fixed {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    /* Anchor to the physical A4 page width to avoid being pushed outside
+       the printable paper area by browser chrome. Use exact A4 width so the
+       element stays within the print viewport. */
+    width: 210mm; /* A4 width */
+    overflow: hidden;
+    text-align: center;
+    z-index: 1000; /* ensure header/footer render above content */
+    pointer-events: none; /* allow clicks/select to pass through */
+  }
+
+  /* If a template should be rendered in the foreground, raise it above content */
+  .print-header-foreground,
+  .print-footer-foreground {
+    z-index: 10000 !important;
+    pointer-events: auto !important;
+  }
+
+    /* Position the header/footer relative to the printable page content
+      by offsetting from the page padding. This keeps them inside the paper
+      area in print preview and in print output. The document padding is
+      20mm, so place footer 20mm above the viewport bottom (paper edge). */
+      .print-header-fixed { top: 0mm; }
+      /* Anchor footer to the physical bottom edge of the printed page so it
+        appears inside the A4 area. The document's bottom margin (set inline
+        in the template) already reserves space to avoid overlap with content. */
+      .print-footer-fixed { bottom: 0mm !important; z-index: 11000 !important; }
+
+  /* Use image height close to measured originals (~30mm). Use center positioning
+     so both sides of the image are preserved when cover crops. */
+  .print-header-fixed img,
+  .print-footer-fixed img {
+    display: block;
+    /* Fill the A4 width area while maintaining aspect ratio. */
+    width: 100%;
+    height: auto; /* don't forcibly stretch the image */
+    max-height: 30mm; /* respect the configured template height */
+    object-fit: contain;
+    object-position: center center;
+  }
+
+    /* Reserve space for header/footer so main content doesn't overlap. The
+       document padding above already acts as page margin; keep additional
+       reserved margin if templates require more space. */
+    .protocol-document { /* margin-top: 35mm; margin-bottom: 35mm; */ position: relative; z-index: 1; }
 }
 
 /* Improve on-screen printing preview */
