@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>Willkommensseite - Neuer Mitarbeiter</h3>
+  <div class="mb-3">
+    <label for="ldap-q" class="form-label">Suche (username oder email)</label>
+    <input id="ldap-q" class="form-control" placeholder="z.B. jthiede" />
+  </div>
+  <div class="mb-3">
+    <button id="btn-lookup" class="btn btn-primary">Suche</button>
+  </div>
+
+  <form id="welcome-form">
+    <div class="row">
+      <div class="col-md-6">
+        <label class="form-label">Vorname</label>
+        <input id="first_name" name="first_name" class="form-control" />
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Nachname</label>
+        <input id="last_name" name="last_name" class="form-control" />
+      </div>
+    </div>
+
+    <div class="row mt-2">
+      <div class="col-md-6">
+        <label class="form-label">Herr/Frau</label>
+        <select id="gender" name="gender" class="form-select">
+          <option value="Herr">Herr</option>
+          <option value="Frau">Frau</option>
+          <option value="Divers">Divers</option>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">E-Mail</label>
+        <input id="email" name="email" class="form-control" />
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <h5>Generierte Zugangsdaten</h5>
+      <pre id="out-result"></pre>
+    </div>
+
+    <div class="mt-3 no-print">
+      <button id="btn-generate" class="btn btn-success" type="button">Generiere Passwörter</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('btn-lookup').addEventListener('click', function(){
+  var q = document.getElementById('ldap-q').value.trim();
+  if (!q) return alert('Bitte Suchbegriff eingeben');
+  fetch('/welcome/lookup?q=' + encodeURIComponent(q)).then(function(r){
+    if (!r.ok) return r.json().then(function(j){ alert(j.error || 'not found'); });
+    return r.json();
+  }).then(function(data){
+    if (!data) return;
+    document.getElementById('first_name').value = data.first_name || '';
+    document.getElementById('last_name').value = data.last_name || '';
+    document.getElementById('email').value = data.email || '';
+    // username stored for generation
+    window.__welcome_username = data.username || q;
+  }).catch(function(){ alert('Fehler beim Lookup'); });
+});
+
+document.getElementById('btn-generate').addEventListener('click', function(){
+  var username = window.__welcome_username || document.getElementById('email').value.split('@')[0] || '';
+  var first = document.getElementById('first_name').value || '';
+  var last = document.getElementById('last_name').value || '';
+  fetch('/welcome/generate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username: username, first_name: first, last_name: last})}).then(function(r){ return r.json(); }).then(function(j){
+    var out = 'PC:\nUser: ' + username + '\nPassword: ' + j.pc_password + '\n\n';
+    out += 'E-Mail:\nBenutzername: ' + (document.getElementById('email').value || '') + '\nPassword: ' + j.email_password + '\n\n';
+    out += 'Cloud:\nBenutzername: ' + username + '\nPassword: ' + j.cloud_password + '\n';
+    document.getElementById('out-result').textContent = out;
+  });
+});
+</script>
+{% endblock %}
